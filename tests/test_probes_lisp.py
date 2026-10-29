@@ -433,10 +433,9 @@ class TestHeavyPolylineBox:
         assert '"VERTEX"' in _defun_body(source(PROBES_LSP), "mcp:polyline-vertex-bbox")
 
     def test_null_box_cannot_enter_a_union(self):
-        """HATCH has no branch, so it measures nil; bb-union must pass over it."""
+        """A type that measures nil (a clipped-out or empty entity) must not break a union."""
         body = _defun_body(source(PROBES_LSP), "mcp:bb-union")
         assert "((null a) b)" in body and "((null b) a)" in body
-        assert "HATCH" not in _defun_body(source(PROBES_LSP), "mcp:ent-bbox-data")
         assert '"null"' in _defun_body(source(PROBES_LSP), "mcp:bb-json")
 
 
@@ -907,3 +906,26 @@ def _defun_body(text: str, name: str) -> str:
             if depth == 0:
                 return text[offset : i + 1]
     raise AssertionError(f"{name} is not closed")
+
+class TestEntBBoxCoversTheReferenceTypes:
+    """Every type probes.entity_bbox measures needs a branch here too, or
+    bbox-by-layer reports `bbox none` for it on one side only."""
+
+    @pytest.mark.parametrize("kind", ["DIMENSION", "HATCH", "VIEWPORT"])
+    def test_branch_exists(self, kind):
+        body = _defun_body(source(PROBES_LSP), "mcp:ent-bbox-data")
+        assert f'(= kind "{kind}")' in body
+
+    def test_the_layout_viewport_is_skipped(self):
+        body = _defun_body(source(PROBES_LSP), "mcp:ent-bbox-data")
+        assert "(mcp:group data 69 0) 1)" in body
+
+    def test_hatch_reads_only_the_boundary_groups(self):
+        """The group 10s before group 91 (elevation) and after group 75 (seed
+        points) are not boundary geometry."""
+        body = _defun_body(source(PROBES_LSP), "mcp:hatch-bbox")
+        assert "(= code 91)" in body and "(= code 75)" in body
+
+    def test_clipped_viewport_is_not_exact(self):
+        body = _defun_body(source(PROBES_LSP), "mcp:ent-exact-p")
+        assert "(assoc 340 data)" in body
