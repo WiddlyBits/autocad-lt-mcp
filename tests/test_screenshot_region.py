@@ -381,11 +381,11 @@ class TestFileIpcDwgRegion:
         b.execute_lisp = execute_lisp
         return b
 
-    async def test_dpi_scaled_canvas_maps_in_capture_pixels(self):
-        # Live 2026-10-30 values: SCREENSIZE 3600x2913, canvas seen as 2880x2330 at (4, 103).
-        b = self._backend("0 0 2330 3600 2913 0 1 2", (4, 103, 2884, 2433))
-        # 1 px/unit in capture px; a 20x20 box at view centre.
-        assert await b.dwg_region_to_px((-10, -10, 10, 10)) == (1434, 1258, 1454, 1278)
+    async def test_maps_against_the_canvas_origin(self):
+        # Live 2026-10-30: SCREENSIZE 3600x2913 == canvas at (9, 137) in AutoCAD's px.
+        b = self._backend("0 0 2913 3600 2913 0 1 2", (9, 137, 3609, 3050))
+        # 1 px/unit; a 20x20 box at view centre.
+        assert await b.dwg_region_to_px((-10, -10, 10, 10)) == (1799, 1583, 1819, 1604)  # half-px centre rounds outward
 
     async def test_twisted_view_is_refused(self):
         b = self._backend("0 0 100 800 600 0.5 1 2", (0, 0, 800, 600))

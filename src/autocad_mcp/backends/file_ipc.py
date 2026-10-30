@@ -930,12 +930,11 @@ class FileIPCBackend(AutoCADBackend):
         if canvas is None:
             raise ValueError("region_dwg: AutoCAD drawing canvas window not found")
         cw, ch = canvas[2] - canvas[0], canvas[3] - canvas[1]
-        # SCREENSIZE is in AutoCAD's px and may differ from ours by a DPI factor
-        # (measured: 3600x2913 vs 2880x2330, x1.25). Same aspect = same area,
-        # so map in our px; a different aspect means tiled viewports.
-        if abs(sh * cw / sw - ch) > 2:
+        # Both are in AutoCAD's own px (the provider measures in the window's DPI
+        # context), so they agree exactly unless SCREENSIZE describes one tile.
+        if abs(cw - sw) > 1 or abs(ch - sh) > 1:
             raise ValueError(
-                f"region_dwg: SCREENSIZE {int(sw)}x{int(sh)} does not match canvas "
-                f"{cw}x{ch} (tiled viewports?); use region"
+                f"region_dwg: SCREENSIZE {int(sw)}x{int(sh)} != canvas {cw}x{ch} "
+                f"(tiled viewports?); use region"
             )
-        return dwg_bbox_to_px(bbox, (cx, cy), vs, (cw, ch), (canvas[0], canvas[1]))
+        return dwg_bbox_to_px(bbox, (cx, cy), vs, (sw, sh), (canvas[0], canvas[1]))

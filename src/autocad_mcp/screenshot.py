@@ -6,6 +6,7 @@ import base64
 import io
 import math
 import sys
+from contextlib import contextmanager
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -350,6 +351,35 @@ class Win32ScreenshotProvider(ScreenshotProvider):
 
         cls._dpi_awareness_initialized = True
 
+    @contextmanager
+    def _window_dpi(self):
+        """Measure and capture in the target window's own DPI context.
+
+        AutoCAD LT is system-DPI-aware. On a monitor whose scale differs from
+        the primary's, PrintWindow returns its surface in AutoCAD's px (measured
+        2026-10-30: 3618x3218) while a per-monitor-aware caller sizes the bitmap
+        in physical px (2894x2574): every capture was the top-left 80% of the
+        window, and SCREENSIZE disagreed with the canvas rect by 1.25x.
+        """
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        old = None
+        try:
+            user32.GetWindowDpiAwarenessContext.restype = ctypes.c_void_p
+            user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
+            user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+            old = user32.SetThreadDpiAwarenessContext(
+                user32.GetWindowDpiAwarenessContext(self._hwnd)
+            )
+        except AttributeError:
+            pass  # pre-1607 Windows: no per-thread DPI context
+        try:
+            yield
+        finally:
+            if old:
+                user32.SetThreadDpiAwarenessContext(old)
+
     def _get_capture_rect(self) -> tuple[int, int, int, int]:
         import win32gui
 
@@ -374,20 +404,21 @@ class Win32ScreenshotProvider(ScreenshotProvider):
         import win32gui
 
         self._ensure_dpi_awareness()
-        kids: list[int] = []
-        win32gui.EnumChildWindows(self._hwnd, lambda h, _: kids.append(h), None)
-        rects = [
-            win32gui.GetWindowRect(h)
-            for h in kids
-            if win32gui.IsWindowVisible(h)
-            and win32gui.GetClassName(h).startswith("ACADDM_CHILD")
-        ]
-        if not rects:
-            return None
-        l, t, r, b = max(rects, key=lambda q: (q[2] - q[0]) * (q[3] - q[1]))
-        # Children move with the real window rect, which sits at (-25600, -25600)
-        # while minimized -- not with the placement rect the capture is sized from.
-        wl, wt, _, _ = win32gui.GetWindowRect(self._hwnd)
+        with self._window_dpi():
+            kids: list[int] = []
+            win32gui.EnumChildWindows(self._hwnd, lambda h, _: kids.append(h), None)
+            rects = [
+                win32gui.GetWindowRect(h)
+                for h in kids
+                if win32gui.IsWindowVisible(h)
+                and win32gui.GetClassName(h).startswith("ACADDM_CHILD")
+            ]
+            if not rects:
+                return None
+            l, t, r, b = max(rects, key=lambda q: (q[2] - q[0]) * (q[3] - q[1]))
+            # Children move with the real window rect, which sits at (-25600, -25600)
+            # while minimized -- not with the placement rect the capture is sized from.
+            wl, wt, _, _ = win32gui.GetWindowRect(self._hwnd)
         return l - wl, t - wt, r - wl, b - wt
 
     def capture(
@@ -408,59 +439,60 @@ class Win32ScreenshotProvider(ScreenshotProvider):
 
             self._ensure_dpi_awareness()
 
-            rect = self._get_capture_rect()
-            width = rect[2] - rect[0]
-            height = rect[3] - rect[1]
+            with self._window_dpi():
+                rect = self._get_capture_rect()
+                width = rect[2] - rect[0]
+                height = rect[3] - rect[1]
 
-            if width <= 0 or height <= 0:
-                log.warning("win32_screenshot_bad_dimensions", width=width, height=height)
-                return None
-
-            hwnd_dc = None
-            mfc_dc = None
-            save_dc = None
-            bitmap = None
-
-            try:
-                hwnd_dc = win32gui.GetWindowDC(self._hwnd)
-                mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
-                save_dc = mfc_dc.CreateCompatibleDC()
-
-                bitmap = win32ui.CreateBitmap()
-                bitmap.CreateCompatibleBitmap(mfc_dc, width, height)
-                save_dc.SelectObject(bitmap)
-
-                PW_RENDERFULLCONTENT = 0x00000002
-                result = ctypes.windll.user32.PrintWindow(
-                    self._hwnd,
-                    save_dc.GetSafeHdc(),
-                    PW_RENDERFULLCONTENT,
-                )
-                if result != 1:
-                    log.warning("win32_printwindow_failed", flag=PW_RENDERFULLCONTENT)
+                if width <= 0 or height <= 0:
+                    log.warning("win32_screenshot_bad_dimensions", width=width, height=height)
                     return None
 
-                bmpinfo = bitmap.GetInfo()
-                bmpstr = bitmap.GetBitmapBits(True)
+                hwnd_dc = None
+                mfc_dc = None
+                save_dc = None
+                bitmap = None
 
-                img = Image.frombuffer(
-                    "RGB",
-                    (bmpinfo["bmWidth"], bmpinfo["bmHeight"]),
-                    bmpstr,
-                    "raw",
-                    "BGRX",
-                    0,
-                    1,
-                )
-            finally:
-                if bitmap is not None:
-                    win32gui.DeleteObject(bitmap.GetHandle())
-                if save_dc is not None:
-                    save_dc.DeleteDC()
-                if mfc_dc is not None:
-                    mfc_dc.DeleteDC()
-                if hwnd_dc is not None:
-                    win32gui.ReleaseDC(self._hwnd, hwnd_dc)
+                try:
+                    hwnd_dc = win32gui.GetWindowDC(self._hwnd)
+                    mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
+                    save_dc = mfc_dc.CreateCompatibleDC()
+
+                    bitmap = win32ui.CreateBitmap()
+                    bitmap.CreateCompatibleBitmap(mfc_dc, width, height)
+                    save_dc.SelectObject(bitmap)
+
+                    PW_RENDERFULLCONTENT = 0x00000002
+                    result = ctypes.windll.user32.PrintWindow(
+                        self._hwnd,
+                        save_dc.GetSafeHdc(),
+                        PW_RENDERFULLCONTENT,
+                    )
+                    if result != 1:
+                        log.warning("win32_printwindow_failed", flag=PW_RENDERFULLCONTENT)
+                        return None
+
+                    bmpinfo = bitmap.GetInfo()
+                    bmpstr = bitmap.GetBitmapBits(True)
+
+                    img = Image.frombuffer(
+                        "RGB",
+                        (bmpinfo["bmWidth"], bmpinfo["bmHeight"]),
+                        bmpstr,
+                        "raw",
+                        "BGRX",
+                        0,
+                        1,
+                    )
+                finally:
+                    if bitmap is not None:
+                        win32gui.DeleteObject(bitmap.GetHandle())
+                    if save_dc is not None:
+                        save_dc.DeleteDC()
+                    if mfc_dc is not None:
+                        mfc_dc.DeleteDC()
+                    if hwnd_dc is not None:
+                        win32gui.ReleaseDC(self._hwnd, hwnd_dc)
 
             if region == "canvas":
                 region = self.canvas_rect()
