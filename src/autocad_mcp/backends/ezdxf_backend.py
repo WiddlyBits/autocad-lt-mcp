@@ -827,11 +827,12 @@ class EzdxfBackend(AutoCADBackend):
         self,
         max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
         quality: int | None = None,
-        region: tuple[int, int, int, int] | None = None,
+        region: tuple[int, int, int, int] | str | None = None,
+        grid: bool = False,
     ) -> CommandResult:
         try:
             data = self._screenshot.capture(
-                max_dimension=max_dimension, quality=quality, region=region
+                max_dimension=max_dimension, quality=quality, region=region, grid=grid
             )
         except ValueError as e:
             return CommandResult(ok=False, error=str(e))

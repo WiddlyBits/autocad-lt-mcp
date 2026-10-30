@@ -312,7 +312,8 @@ class AutoCADBackend(ABC):
         self,
         max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
         quality: int | None = None,
-        region: tuple[int, int, int, int] | None = None,
+        region: tuple[int, int, int, int] | str | None = None,
+        grid: bool = False,
     ) -> CommandResult:
         """Return the encoded image in payload.
 
@@ -320,6 +321,8 @@ class AutoCADBackend(ABC):
 
         max_dimension caps the longest side in pixels (None = full resolution).
         quality (1-95), if given, encodes as JPEG instead of PNG.
-        region (left, top, right, bottom) crops the capture before downscaling.
+        region (left, top, right, bottom) crops the capture before downscaling;
+        "canvas" crops to the drawing area.
+        grid overlays native-px labelled rules on a low-res preview.
         """
         return CommandResult(ok=False, error="Not supported on this backend")

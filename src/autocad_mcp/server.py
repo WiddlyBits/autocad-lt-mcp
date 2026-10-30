@@ -481,8 +481,10 @@ async def view(
     y2: float | None = None,
     max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
     quality: int | None = None,
-    region: list[int] | None = None,
+    region: list[int] | str | None = None,
     save_to: str | None = None,
+    grid: bool = False,
+    region_dwg: list[float] | None = None,
 ) -> ToolResult:
     """Viewport control and screenshot capture.
 
@@ -504,6 +506,16 @@ async def view(
                         1928x1218 window costs ~1,334 even downscaled to 1280 —
                         and that downscale is what made its small text
                         unreadable. Use it for any detail check.
+                        region="canvas" keeps only the drawing area (no
+                        ribbon, tabs, palettes, command line).
+      grid=true      — Low-res preview (longest side 560, ~360 tokens) with red
+                        rules labelled in native window px. Read the labels and
+                        pass them straight back as region for the sharp crop.
+      region_dwg [x1, y1, x2, y2]
+                     — Crop by DRAWING coordinates (e.g. a sel-dump or entity
+                        bbox) in the current view. AutoCAD backend only;
+                        refused on twisted views, active layout viewports and
+                        tiled viewports. Overrides region.
       save_to        — Write the PNG to this path and return only its path and
                         cost, with NO image attached. Nothing enters context, so
                         you can drop checkpoints during a long edit and spend
@@ -529,7 +541,20 @@ async def view(
         result = await backend.zoom_window(x1, y1, x2, y2)
         return _json(result.to_dict())
     elif operation == "get_screenshot":
-        if region is not None:
+        if region_dwg is not None:
+            if len(region_dwg) != 4 or not all(isinstance(v, (int, float)) for v in region_dwg):
+                return _json({"error": "region_dwg must be 4 numbers: [x1, y1, x2, y2]"})
+            if not hasattr(backend, "dwg_region_to_px"):
+                return _json({"error": "region_dwg needs the AutoCAD (file_ipc) backend"})
+            try:
+                region = list(await backend.dwg_region_to_px(tuple(region_dwg)))
+            except ValueError as e:
+                return _json({"error": str(e)})
+
+        if isinstance(region, str):
+            if region != "canvas":
+                return _json({"error": 'region must be [left, top, right, bottom] or "canvas"'})
+        elif region is not None:
             if len(region) != 4 or not all(isinstance(v, int) for v in region):
                 return _json(
                     {"error": "region must be 4 integers: [left, top, right, bottom]"}
@@ -541,7 +566,7 @@ async def view(
             max_dimension = max(low, min(high, max_dimension))
 
         result = await backend.get_screenshot(
-            max_dimension=max_dimension, quality=quality, region=region
+            max_dimension=max_dimension, quality=quality, region=region, grid=grid
         )
         if not (result.ok and result.payload):
             return _json(result.to_dict())
@@ -551,6 +576,7 @@ async def view(
             "width": result.payload["width"],
             "height": result.payload["height"],
             "est_tokens": result.payload["est_tokens"],
+            "region": list(region) if isinstance(region, tuple) else region,
             "hint": None,
         }
 

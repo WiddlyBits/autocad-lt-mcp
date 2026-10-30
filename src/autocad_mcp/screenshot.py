@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import math
 import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -24,6 +25,13 @@ _JPEG_QUALITY_RANGE = (1, 95)
 # Vision models tile images into 28x28 patches, so an image costs
 # ceil(w/28) * ceil(h/28) tokens — a function of dimensions only.
 _PATCH = 28
+
+# A grid preview is for choosing where to look, not for reading: ~360 visual
+# tokens at the typical window aspect, versus ~1,300-1,900 for the 1280 default.
+GRID_PREVIEW_DIMENSION = 560
+
+# Native-px rule spacings a grid may use; the one giving ~8 rules wins.
+_GRID_STEPS = (50, 100, 200, 250, 500, 1000)
 
 
 def visual_tokens(width: int, height: int) -> int:
@@ -68,13 +76,86 @@ def crop_to_region(img: PILImage, region: tuple[int, int, int, int]) -> PILImage
     return img.crop(box)
 
 
+def grid_step(longest_native: int) -> int:
+    """Rule spacing in native px giving roughly 8 rules along the longest side."""
+    return min(_GRID_STEPS, key=lambda st: abs(longest_native / st - 8))
+
+
+def overlay_grid(img: PILImage, step: int, scale: float, origin: tuple[int, int]) -> PILImage:
+    """Draw labelled rules on a (possibly scaled, possibly cropped) capture.
+
+    Ported from io-drawing-extraction/scripts/crop.py. Rules land on multiples
+    of `step` in *native window* pixels and are labelled with those values, so a
+    number read off the preview passes straight back as `region` -- the scale
+    and crop offset are already undone.
+    """
+    from PIL import ImageDraw, ImageFont
+
+    img = img.convert("RGB")
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("arialbd.ttf", 14)
+    except OSError:
+        font = ImageFont.load_default()
+    red = (220, 30, 30)
+    ox, oy = origin
+
+    nx = (ox // step + 1) * step
+    while (x := int((nx - ox) * scale)) < img.width:
+        draw.line([(x, 0), (x, img.height)], fill=red, width=1)
+        for y in (2, img.height // 2, img.height - 18):
+            draw.text((x + 3, y), str(nx), fill=red, font=font)
+        nx += step
+
+    ny = (oy // step + 1) * step
+    while (y := int((ny - oy) * scale)) < img.height:
+        draw.line([(0, y), (img.width, y)], fill=red, width=1)
+        for x in (2, img.width // 2, img.width - 44):
+            draw.text((x, y + 2), str(ny), fill=red, font=font)
+        ny += step
+
+    return img
+
+
+def dwg_bbox_to_px(
+    bbox: tuple[float, float, float, float],
+    viewctr: tuple[float, float],
+    viewsize: float,
+    screensize: tuple[float, float],
+    canvas_origin: tuple[int, int],
+) -> tuple[int, int, int, int]:
+    """Map a drawing-unit box (x1, y1, x2, y2) to a window-pixel region.
+
+    VIEWSIZE is the view height in drawing units and SCREENSIZE the canvas in
+    px, so px-per-unit is screen_h / VIEWSIZE; VIEWCTR sits at the canvas
+    centre. Screen y grows downward, drawing y upward. canvas_origin is the
+    canvas's top-left inside the captured window. Untwisted views only.
+    """
+    x1, y1, x2, y2 = bbox
+    cx, cy = viewctr
+    sw, sh = screensize
+    s = sh / viewsize
+    ox, oy = canvas_origin
+
+    def px(x, y):
+        return ox + sw / 2 + (x - cx) * s, oy + sh / 2 - (y - cy) * s
+
+    (l, t), (r, b) = px(min(x1, x2), max(y1, y2)), px(max(x1, x2), min(y1, y2))
+    return math.floor(l), math.floor(t), math.ceil(r), math.ceil(b)  # never clip the box
+
+
 def _resize_and_encode(
     img: PILImage,
     max_dimension: int | None,
     quality: int | None,
-    region: tuple[int, int, int, int] | None = None,
+    region: tuple[int, int, int, int] | str | None = None,
+    grid: bool = False,
 ) -> dict[str, str | int]:
     """Crop, downscale, and encode img for transport.
+
+    grid caps the longest side at GRID_PREVIEW_DIMENSION and overlays rules
+    labelled in native window px (see overlay_grid). The string region "canvas"
+    is resolved by the Win32 provider; for a whole-image render it means None.
 
     region (left, top, right, bottom) in pixels of the *captured* image, applied
     before the downscale. See crop_to_region.
@@ -97,14 +178,24 @@ def _resize_and_encode(
     """
     from PIL import Image
 
+    if region == "canvas":
+        region = None  # a DXF render has no chrome: all of it is canvas
+    origin = (0, 0)
     if region is not None:
         img = crop_to_region(img, region)
+        origin = (max(0, region[0]), max(0, region[1]))
 
-    longest = max(img.size)
+    longest = native_longest = max(img.size)
+    if grid:
+        max_dimension = min(max_dimension or GRID_PREVIEW_DIMENSION, GRID_PREVIEW_DIMENSION)
+    scale = 1.0
     if max_dimension and max_dimension > 0 and longest > max_dimension:
         scale = max_dimension / longest
         new_size = (max(1, round(img.width * scale)), max(1, round(img.height * scale)))
         img = img.resize(new_size, Image.LANCZOS)
+
+    if grid:
+        img = overlay_grid(img, grid_step(native_longest), scale, origin)
 
     buf = io.BytesIO()
     if quality is None:
@@ -134,7 +225,8 @@ class ScreenshotProvider(ABC):
         self,
         max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
         quality: int | None = None,
-        region: tuple[int, int, int, int] | None = None,
+        region: tuple[int, int, int, int] | str | None = None,
+        grid: bool = False,
     ) -> dict[str, str | int] | None:
         """Return the encoded image dict, or None if capture fails.
 
@@ -142,7 +234,10 @@ class ScreenshotProvider(ABC):
 
         max_dimension caps the longest side in pixels (None = full resolution).
         quality (1-95), if given, encodes as JPEG instead of PNG for a smaller payload.
-        region (left, top, right, bottom) crops the capture before downscaling.
+        region (left, top, right, bottom) crops the capture before downscaling;
+        "canvas" crops to the drawing area (ribbon, tabs, palettes and command
+        line stripped).
+        grid overlays native-px labelled rules on a low-res preview.
         """
 
 
@@ -153,7 +248,8 @@ class NullScreenshotProvider(ScreenshotProvider):
         self,
         max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
         quality: int | None = None,
-        region: tuple[int, int, int, int] | None = None,
+        region: tuple[int, int, int, int] | str | None = None,
+        grid: bool = False,
     ) -> dict[str, str | int] | None:
         return None
 
@@ -176,7 +272,8 @@ class MatplotlibScreenshotProvider(ScreenshotProvider):
         self,
         max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
         quality: int | None = None,
-        region: tuple[int, int, int, int] | None = None,
+        region: tuple[int, int, int, int] | str | None = None,
+        grid: bool = False,
     ) -> dict[str, str | int] | None:
         if self._doc is None:
             return None
@@ -202,7 +299,7 @@ class MatplotlibScreenshotProvider(ScreenshotProvider):
             buf.seek(0)
             img = Image.open(buf)
             img.load()
-            return _resize_and_encode(img, max_dimension, quality, region)
+            return _resize_and_encode(img, max_dimension, quality, region, grid)
         except ValueError:
             raise  # a bad region is a caller error, not a capture failure
         except Exception as e:
@@ -267,11 +364,38 @@ class Win32ScreenshotProvider(ScreenshotProvider):
 
         return win32gui.GetWindowRect(self._hwnd)
 
+    def canvas_rect(self) -> tuple[int, int, int, int] | None:
+        """The drawing canvas as (left, top, right, bottom) in captured-window px.
+
+        The canvas is AutoCAD's ACADDM_CHILD_* view window; its client size is
+        exactly SCREENSIZE (measured 2026-10-30: 3600x2913 both). The largest
+        visible one wins. None if no such child is found.
+        """
+        import win32gui
+
+        self._ensure_dpi_awareness()
+        kids: list[int] = []
+        win32gui.EnumChildWindows(self._hwnd, lambda h, _: kids.append(h), None)
+        rects = [
+            win32gui.GetWindowRect(h)
+            for h in kids
+            if win32gui.IsWindowVisible(h)
+            and win32gui.GetClassName(h).startswith("ACADDM_CHILD")
+        ]
+        if not rects:
+            return None
+        l, t, r, b = max(rects, key=lambda q: (q[2] - q[0]) * (q[3] - q[1]))
+        # Children move with the real window rect, which sits at (-25600, -25600)
+        # while minimized -- not with the placement rect the capture is sized from.
+        wl, wt, _, _ = win32gui.GetWindowRect(self._hwnd)
+        return l - wl, t - wt, r - wl, b - wt
+
     def capture(
         self,
         max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
         quality: int | None = None,
-        region: tuple[int, int, int, int] | None = None,
+        region: tuple[int, int, int, int] | str | None = None,
+        grid: bool = False,
     ) -> dict[str, str | int] | None:
         if sys.platform != "win32":
             return None
@@ -338,9 +462,14 @@ class Win32ScreenshotProvider(ScreenshotProvider):
                 if hwnd_dc is not None:
                     win32gui.ReleaseDC(self._hwnd, hwnd_dc)
 
+            if region == "canvas":
+                region = self.canvas_rect()
+                if region is None:
+                    raise ValueError("region 'canvas': AutoCAD drawing canvas window not found")
+
             # Crop/resize/encode is pure CPU work — do it after the GDI handles
             # are released rather than holding a window DC for the duration.
-            return _resize_and_encode(img, max_dimension, quality, region)
+            return _resize_and_encode(img, max_dimension, quality, region, grid)
 
         except ValueError:
             raise  # a bad region is a caller error, not a capture failure

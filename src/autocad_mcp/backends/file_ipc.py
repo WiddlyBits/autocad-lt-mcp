@@ -881,15 +881,61 @@ class FileIPCBackend(AutoCADBackend):
         self,
         max_dimension: int | None = SCREENSHOT_MAX_DIMENSION,
         quality: int | None = None,
-        region: tuple[int, int, int, int] | None = None,
+        region: tuple[int, int, int, int] | str | None = None,
+        grid: bool = False,
     ) -> CommandResult:
         if self._screenshot_provider:
             try:
                 data = self._screenshot_provider.capture(
-                    max_dimension=max_dimension, quality=quality, region=region
+                    max_dimension=max_dimension, quality=quality, region=region, grid=grid
                 )
             except ValueError as e:
                 return CommandResult(ok=False, error=str(e))
             if data:
                 return CommandResult(ok=True, payload=data)
         return CommandResult(ok=False, error="Screenshot capture failed")
+
+    async def dwg_region_to_px(
+        self, bbox: tuple[float, float, float, float]
+    ) -> tuple[int, int, int, int]:
+        """Window-pixel region showing drawing box (x1, y1, x2, y2) in the current view.
+
+        Raises ValueError when the mapping would be wrong rather than approximate:
+        a twisted view, a model-space viewport active on a layout, or tiled
+        viewports (SCREENSIZE then describes one viewport, not the canvas).
+        """
+        from autocad_mcp.screenshot import dwg_bbox_to_px
+
+        if self._screenshot_provider is None:
+            raise ValueError("region_dwg: no window capture available")
+        # rtos, not getvar's printed form: that keeps 6 significant digits, ~5
+        # units of error on a 4e6 coordinate.
+        r = await self.execute_lisp(
+            '(strcat (rtos (car (getvar "VIEWCTR")) 2 8) " " (rtos (cadr (getvar "VIEWCTR")) 2 8)'
+            ' " " (rtos (getvar "VIEWSIZE") 2 8) " " (rtos (car (getvar "SCREENSIZE")) 2 0)'
+            ' " " (rtos (cadr (getvar "SCREENSIZE")) 2 0) " " (rtos (getvar "VIEWTWIST") 2 8)'
+            ' " " (itoa (getvar "TILEMODE")) " " (itoa (getvar "CVPORT")))'
+        )
+        if not (r.ok and isinstance(r.payload, str)):
+            raise ValueError(f"region_dwg: could not read view variables ({r.error})")
+        cx, cy, vs, sw, sh, twist, tilemode, cvport = (float(v) for v in r.payload.split())
+        if abs(twist) > 1e-9:
+            raise ValueError("region_dwg: view is twisted (VIEWTWIST != 0); use region")
+        if tilemode == 0 and cvport != 1:
+            raise ValueError(
+                "region_dwg: a model-space viewport is active on a layout; "
+                "VIEWCTR describes that viewport, not the screen. Use region"
+            )
+        canvas = self._screenshot_provider.canvas_rect()
+        if canvas is None:
+            raise ValueError("region_dwg: AutoCAD drawing canvas window not found")
+        cw, ch = canvas[2] - canvas[0], canvas[3] - canvas[1]
+        # SCREENSIZE is in AutoCAD's px and may differ from ours by a DPI factor
+        # (measured: 3600x2913 vs 2880x2330, x1.25). Same aspect = same area,
+        # so map in our px; a different aspect means tiled viewports.
+        if abs(sh * cw / sw - ch) > 2:
+            raise ValueError(
+                f"region_dwg: SCREENSIZE {int(sw)}x{int(sh)} does not match canvas "
+                f"{cw}x{ch} (tiled viewports?); use region"
+            )
+        return dwg_bbox_to_px(bbox, (cx, cy), vs, (cw, ch), (canvas[0], canvas[1]))

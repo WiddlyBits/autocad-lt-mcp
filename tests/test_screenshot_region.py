@@ -268,3 +268,137 @@ class TestViewScreenshotTool:
         payload = _text_of(result)
         assert payload.get("ok") is False
         assert "empty" in payload["error"]
+
+
+# ---------------------------------------------------------------------------
+# grid preview, drawing-coordinate crop, canvas crop
+# ---------------------------------------------------------------------------
+
+
+def _decode(out):
+    import io
+
+    return Image.open(io.BytesIO(base64.b64decode(out["data"]))).convert("RGB")
+
+
+def _is_red(px):
+    r, g, b = px
+    return r > 180 and g < 80 and b < 80
+
+
+class TestGridPreview:
+    def test_caps_to_preview_size(self):
+        from autocad_mcp.screenshot import GRID_PREVIEW_DIMENSION
+
+        out = _resize_and_encode(Image.new("RGB", (4000, 3000), "white"), 1280, None, grid=True)
+        assert max(out["width"], out["height"]) == GRID_PREVIEW_DIMENSION
+        assert out["est_tokens"] < 400
+
+    def test_rules_sit_on_native_coordinates_after_downscale(self):
+        # 4000 px native -> step 500, scale 560/4000: native 500 lands at x=70.
+        out = _resize_and_encode(Image.new("RGB", (4000, 3000), "white"), None, None, grid=True)
+        img = _decode(out)
+        assert _is_red(img.getpixel((70, 100)))
+        assert not _is_red(img.getpixel((60, 100)))
+
+    def test_rules_account_for_crop_offset(self):
+        # Crop starts at native x=1000; 2000 px wide -> step 250; first rule at
+        # native 1250 -> (1250-1000) * 560/2000 = 70.
+        img = Image.new("RGB", (4000, 3000), "white")
+        out = _resize_and_encode(img, None, None, region=(1000, 0, 3000, 1500), grid=True)
+        assert _is_red(_decode(out).getpixel((70, 100)))
+
+    def test_canvas_on_a_render_is_the_whole_image(self):
+        out = _resize_and_encode(Image.new("RGB", (800, 600)), None, None, region="canvas")
+        assert (out["width"], out["height"]) == (800, 600)
+
+
+class TestDwgBboxToPx:
+    def test_view_centre_maps_to_canvas_centre(self):
+        from autocad_mcp.screenshot import dwg_bbox_to_px
+
+        # 1000 units tall on a 2000x1000 canvas -> 1 px per unit.
+        px = dwg_bbox_to_px((-10, -10, 10, 10), (0, 0), 1000, (2000, 1000), (9, 137))
+        assert px == (9 + 990, 137 + 490, 9 + 1010, 137 + 510)
+
+    def test_y_axis_flips_and_corners_may_come_in_any_order(self):
+        from autocad_mcp.screenshot import dwg_bbox_to_px
+
+        # 2 px per unit; box above-right of centre lands above-right on screen.
+        a = dwg_bbox_to_px((100, 50, 200, 100), (0, 0), 500, (2000, 1000), (0, 0))
+        b = dwg_bbox_to_px((200, 100, 100, 50), (0, 0), 500, (2000, 1000), (0, 0))
+        assert a == b == (1200, 300, 1400, 400)
+
+    def test_fractional_edges_round_outward(self):
+        from autocad_mcp.screenshot import dwg_bbox_to_px
+
+        assert dwg_bbox_to_px((0.25, 0.25, 0.75, 0.75), (0, 0), 1000, (1000, 1000), (0, 0)) == (
+            500, 499, 501, 500,
+        )
+
+
+class TestViewGridAndDwgRegion:
+    async def test_grid_flag_returns_cheap_preview(self):
+        from autocad_mcp.server import mcp
+
+        payload = _text_of(await mcp.call_tool("view", {"operation": "get_screenshot", "grid": True}))
+        assert payload["est_tokens"] <= 400  # 560x560 worst case
+
+    async def test_region_dwg_refused_without_autocad_backend(self):
+        from autocad_mcp.server import mcp
+
+        payload = _text_of(
+            await mcp.call_tool(
+                "view", {"operation": "get_screenshot", "region_dwg": [0, 0, 10, 10]}
+            )
+        )
+        assert "file_ipc" in payload["error"]
+
+    async def test_bad_region_string_is_rejected(self):
+        from autocad_mcp.server import mcp
+
+        payload = _text_of(
+            await mcp.call_tool("view", {"operation": "get_screenshot", "region": "ribbon"})
+        )
+        assert "canvas" in payload["error"]
+
+
+class TestFileIpcDwgRegion:
+    """dwg_region_to_px with AutoCAD and the window stubbed out."""
+
+    def _backend(self, lisp_payload, canvas):
+        from types import SimpleNamespace
+
+        from autocad_mcp.backends.base import CommandResult
+        from autocad_mcp.backends.file_ipc import FileIPCBackend
+
+        b = object.__new__(FileIPCBackend)
+        b._screenshot_provider = SimpleNamespace(canvas_rect=lambda: canvas)
+
+        async def execute_lisp(code):
+            return CommandResult(ok=True, payload=lisp_payload)
+
+        b.execute_lisp = execute_lisp
+        return b
+
+    async def test_dpi_scaled_canvas_maps_in_capture_pixels(self):
+        # Live 2026-10-30 values: SCREENSIZE 3600x2913, canvas seen as 2880x2330 at (4, 103).
+        b = self._backend("0 0 2330 3600 2913 0 1 2", (4, 103, 2884, 2433))
+        # 1 px/unit in capture px; a 20x20 box at view centre.
+        assert await b.dwg_region_to_px((-10, -10, 10, 10)) == (1434, 1258, 1454, 1278)
+
+    async def test_twisted_view_is_refused(self):
+        b = self._backend("0 0 100 800 600 0.5 1 2", (0, 0, 800, 600))
+        with pytest.raises(ValueError, match="twisted"):
+            await b.dwg_region_to_px((0, 0, 1, 1))
+
+    async def test_tiled_viewports_are_refused(self):
+        # SCREENSIZE describes one of two side-by-side viewports: aspect differs.
+        b = self._backend("0 0 100 400 600 0 1 2", (0, 0, 800, 600))
+        with pytest.raises(ValueError, match="tiled"):
+            await b.dwg_region_to_px((0, 0, 1, 1))
+
+    async def test_active_layout_viewport_is_refused(self):
+        b = self._backend("0 0 100 800 600 0 0 2", (0, 0, 800, 600))
+        with pytest.raises(ValueError, match="layout"):
+            await b.dwg_region_to_px((0, 0, 1, 1))
