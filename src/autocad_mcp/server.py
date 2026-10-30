@@ -508,6 +508,11 @@ async def view(
                         unreadable. Use it for any detail check.
                         region="canvas" keeps only the drawing area (no
                         ribbon, tabs, palettes, command line).
+                        region="changed" crops to the canvas pixels that
+                        changed since the previous capture — after a local
+                        edit, a region-sized image instead of the whole
+                        window. Take a save_to capture first as the 0-token
+                        baseline. The resolved px region is reported back.
       grid=true      — Low-res preview (longest side 560, ~360 tokens) with red
                         rules labelled in native window px. Read the labels and
                         pass them straight back as region for the sharp crop.
@@ -552,8 +557,10 @@ async def view(
                 return _json({"error": str(e)})
 
         if isinstance(region, str):
-            if region != "canvas":
-                return _json({"error": 'region must be [left, top, right, bottom] or "canvas"'})
+            if region not in ("canvas", "changed"):
+                return _json(
+                    {"error": 'region must be [left, top, right, bottom], "canvas" or "changed"'}
+                )
         elif region is not None:
             if len(region) != 4 or not all(isinstance(v, int) for v in region):
                 return _json(
@@ -576,7 +583,9 @@ async def view(
             "width": result.payload["width"],
             "height": result.payload["height"],
             "est_tokens": result.payload["est_tokens"],
-            "region": list(region) if isinstance(region, tuple) else region,
+            "region": result.payload.get(
+                "region", list(region) if isinstance(region, tuple) else region
+            ),
             "hint": None,
         }
 

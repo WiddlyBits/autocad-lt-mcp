@@ -31,6 +31,9 @@ _PATCH = 28
 # tokens at the typical window aspect, versus ~1,300-1,900 for the 1280 default.
 GRID_PREVIEW_DIMENSION = 560
 
+# Context kept around a region="changed" crop, in native window px.
+CHANGED_PAD = 40
+
 # Native-px rule spacings a grid may use; the one giving ~8 rules wins.
 _GRID_STEPS = (50, 100, 200, 250, 500, 1000)
 
@@ -145,6 +148,32 @@ def dwg_bbox_to_px(
     return math.floor(l), math.floor(t), math.ceil(r), math.ceil(b)  # never clip the box
 
 
+def changed_bbox(
+    prev: PILImage,
+    cur: PILImage,
+    within: tuple[int, int, int, int] | None = None,
+    pad: int = CHANGED_PAD,
+    threshold: int = 16,
+) -> tuple[int, int, int, int] | None:
+    """Padded bbox, in cur's px, of the pixels that differ by more than threshold.
+
+    within limits the search (the canvas: the command line changes on every
+    dispatch). threshold ignores antialiasing noise. None if nothing changed.
+    """
+    from PIL import ImageChops
+
+    diff = ImageChops.difference(prev, cur).convert("L").point(lambda p: 255 if p > threshold else 0)
+    ox, oy = 0, 0
+    if within is not None:
+        diff = diff.crop(within)
+        ox, oy = within[0], within[1]
+    box = diff.getbbox()
+    if box is None:
+        return None
+    l, t, r, b = box[0] + ox, box[1] + oy, box[2] + ox, box[3] + oy
+    return max(0, l - pad), max(0, t - pad), min(cur.width, r + pad), min(cur.height, b + pad)
+
+
 def _resize_and_encode(
     img: PILImage,
     max_dimension: int | None,
@@ -181,6 +210,8 @@ def _resize_and_encode(
 
     if region == "canvas":
         region = None  # a DXF render has no chrome: all of it is canvas
+    elif region == "changed":
+        raise ValueError('region "changed" needs the AutoCAD window capture (file_ipc backend)')
     origin = (0, 0)
     if region is not None:
         img = crop_to_region(img, region)
@@ -315,6 +346,7 @@ class Win32ScreenshotProvider(ScreenshotProvider):
 
     def __init__(self, hwnd: int):
         self._hwnd = hwnd
+        self._last: PILImage | None = None  # previous full native capture, for region="changed"
 
     @classmethod
     def _ensure_dpi_awareness(cls) -> None:
@@ -383,15 +415,6 @@ class Win32ScreenshotProvider(ScreenshotProvider):
     def _get_capture_rect(self) -> tuple[int, int, int, int]:
         import win32gui
 
-        placement = win32gui.GetWindowPlacement(self._hwnd)
-        normal_rect = placement[4]
-
-        if win32gui.IsIconic(self._hwnd):
-            width = normal_rect[2] - normal_rect[0]
-            height = normal_rect[3] - normal_rect[1]
-            if width > 0 and height > 0:
-                return normal_rect
-
         return win32gui.GetWindowRect(self._hwnd)
 
     def canvas_rect(self) -> tuple[int, int, int, int] | None:
@@ -438,6 +461,10 @@ class Win32ScreenshotProvider(ScreenshotProvider):
             from PIL import Image
 
             self._ensure_dpi_awareness()
+
+            # PrintWindow of a minimized DXGI canvas is black, at full price.
+            if win32gui.IsIconic(self._hwnd):
+                raise ValueError("AutoCAD window is minimized; restore it, then retry the capture")
 
             with self._window_dpi():
                 rect = self._get_capture_rect()
@@ -494,14 +521,27 @@ class Win32ScreenshotProvider(ScreenshotProvider):
                     if hwnd_dc is not None:
                         win32gui.ReleaseDC(self._hwnd, hwnd_dc)
 
+            prev, self._last = self._last, img
             if region == "canvas":
                 region = self.canvas_rect()
                 if region is None:
                     raise ValueError("region 'canvas': AutoCAD drawing canvas window not found")
+            elif region == "changed":
+                if prev is None or prev.size != img.size:
+                    raise ValueError(
+                        'region "changed": no earlier capture of this window to compare; '
+                        "this one is now the baseline (save_to makes a 0-token baseline)"
+                    )
+                region = changed_bbox(prev, img, self.canvas_rect())
+                if region is None:
+                    raise ValueError('region "changed": no pixels changed since the last capture')
 
             # Crop/resize/encode is pure CPU work — do it after the GDI handles
             # are released rather than holding a window DC for the duration.
-            return _resize_and_encode(img, max_dimension, quality, region, grid)
+            out = _resize_and_encode(img, max_dimension, quality, region, grid)
+            if region is not None:
+                out["region"] = list(region)  # resolved px, for "canvas"/"changed"
+            return out
 
         except ValueError:
             raise  # a bad region is a caller error, not a capture failure

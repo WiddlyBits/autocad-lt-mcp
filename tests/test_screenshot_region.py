@@ -7,6 +7,7 @@ matter: crop before downscale (region), keep the image out of context entirely
 
 import base64
 import json
+import sys
 
 import ezdxf
 import pytest
@@ -402,3 +403,72 @@ class TestFileIpcDwgRegion:
         b = self._backend("0 0 100 800 600 0 0 2", (0, 0, 800, 600))
         with pytest.raises(ValueError, match="layout"):
             await b.dwg_region_to_px((0, 0, 1, 1))
+
+
+# ---------------------------------------------------------------------------
+# diff capture (region="changed") and the minimized-window guard
+# ---------------------------------------------------------------------------
+
+
+class TestChangedBbox:
+    def test_padded_box_around_the_changed_pixels(self):
+        from autocad_mcp.screenshot import changed_bbox
+
+        a = Image.new("RGB", (1000, 800), "white")
+        b = a.copy()
+        b.paste((0, 0, 0), (300, 200, 350, 240))
+        assert changed_bbox(a, b, pad=10) == (290, 190, 360, 250)
+
+    def test_identical_images_give_none(self):
+        from autocad_mcp.screenshot import changed_bbox
+
+        a = Image.new("RGB", (100, 100), "white")
+        assert changed_bbox(a, a.copy()) is None
+
+    def test_change_outside_within_is_ignored_and_offset_applies(self):
+        from autocad_mcp.screenshot import changed_bbox
+
+        a = Image.new("RGB", (1000, 800), "white")
+        b = a.copy()
+        b.paste((0, 0, 0), (0, 750, 1000, 800))  # command line rewrote itself
+        b.paste((0, 0, 0), (500, 300, 510, 310))  # the real edit
+        assert changed_bbox(a, b, within=(0, 100, 1000, 700), pad=0) == (500, 300, 510, 310)
+
+    def test_antialias_noise_below_threshold_is_ignored(self):
+        from autocad_mcp.screenshot import changed_bbox
+
+        a = Image.new("RGB", (100, 100), (200, 200, 200))
+        b = Image.new("RGB", (100, 100), (205, 205, 205))
+        assert changed_bbox(a, b) is None
+
+    def test_pad_clamps_to_the_image(self):
+        from autocad_mcp.screenshot import changed_bbox
+
+        a = Image.new("RGB", (100, 100), "white")
+        b = a.copy()
+        b.putpixel((0, 99), (0, 0, 0))
+        assert changed_bbox(a, b, pad=40) == (0, 59, 41, 100)
+
+    def test_changed_on_a_render_is_refused(self):
+        with pytest.raises(ValueError, match="changed"):
+            _resize_and_encode(Image.new("RGB", (100, 100)), None, None, region="changed")
+
+    async def test_view_accepts_changed(self):
+        from autocad_mcp.server import mcp
+
+        payload = _text_of(
+            await mcp.call_tool("view", {"operation": "get_screenshot", "region": "changed"})
+        )
+        assert "region must be" not in payload.get("error", "")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="pywin32 is Windows-only")
+class TestMinimizedGuard:
+    def test_minimized_window_is_refused_not_captured(self, monkeypatch):
+        import win32gui
+
+        from autocad_mcp.screenshot import Win32ScreenshotProvider
+
+        monkeypatch.setattr(win32gui, "IsIconic", lambda h: True)
+        with pytest.raises(ValueError, match="minimized"):
+            Win32ScreenshotProvider(0).capture()
