@@ -5,8 +5,8 @@ description: >-
   troubleshoot autocad-mcp (tools named mcp__autocad-mcp__ system, drawing,
   entity, layer, view, block, annotation). Load before any mcp__autocad-mcp__ call
   and whenever the user refers to a selection ("the lines I have selected", "move these
-  circles", "duplicate these labels") — grip selection does not survive the MCP link and
-  Rule 1 is how it gets handed over.
+  circles", "duplicate these labels") — read the live selection with (mcp:sel-dump) first;
+  Rule 1 covers the HS fallback.
 ---
 
 # Working in AutoCAD LT via autocad-mcp
@@ -38,19 +38,23 @@ is hand-rolled AutoLISP.
 
 ## Rule 1: the selection contract
 
-**Gianni's grip selection cannot be pulled. He has to hand it over.** The dispatcher works
-by typing `(c:mcp-dispatch)` at the command line, and starting a command is exactly what
-discards the implied selection. `(ssget "_I")` is *always* nil here — never call it, and
-never ask him to re-select in the hope that this time it survives.
+**Read the live selection first. `HS` is the fallback.** `(mcp:sel-dump)` reads the grips up
+right now and reports `source:"implied"`. A dispatch does not clear them, because the server
+sends ESC only when recovering from stale IPC files. Measured on LT 2027: 6 hand selections
+(LINE, LWPOLYLINE, CIRCLE, ARC, TEXT, MTEXT, INSERT, in Model and on a layout) across 2 AutoCAD
+sessions read back exactly, through up to 5 dispatches and a typed `REGEN`.
 
-1. **Ask for the handoff, with the exact keystrokes.** Preferred: with the objects
-   selected, type `HS` then Enter — it prints how many it stashed. Fallback if
-   `mcp_select.lsp` is not loaded: type `SELECT`, Enter, then Enter again, which fills the
-   previous-selection set. Never make him ask which command you meant.
-2. **`(mcp:sel-dump)` — once.** One payload gives count, source, document, space, the
+The limits: ESC recovery clears grips (3 of 3 in that test), and so does any command that
+consumes the selection. If `source` is `"none"` or the count is wrong, don't ask him to
+re-select and hope.
+
+1. **`(mcp:sel-dump)` — once.** One payload gives count, source, document, space, the
    union bbox, and per entity: handle, type, layer, space, and type-correct geometry
    including the literal contents of any text. Do not follow it with a second probe of the
-   same set.
+   same set. A live read is also stashed, so a later `(mcp:sel)` returns the same set after
+   the grips are gone (`source:"HS"`).
+2. **If nothing came back, ask for the handoff, with the exact keystrokes:** with the
+   objects selected, type `HS` then Enter. It prints how many it stashed.
 3. **Echo before you mutate.** `(mcp:sel-show)` zooms to the set and highlights it, at
    zero token cost. Say what you counted ("16 TEXT on layer LABEL, model space").
    **If the `count` does not match what the user described, halt** and ask — a set that is
@@ -119,7 +123,10 @@ is in the wrong space. See `references/activex-and-lisp-limits.md`.
 **To back out an edit, use `drawing(undo)`** — every verb opens one named UNDO group
 (`(mcp:undo-begin "<label>")`/`(mcp:undo-end)`; use them in hand-written edits too — the
 label is required, a bare `(mcp:undo-begin)` errors `too few arguments`), so one undo reverses
-the whole batch. Never reverse a move by moving back: a re-move with a slightly different
+the whole batch, if nothing ran after it. A view step counts: a zoom after the batch took the
+first undo, which returned `ok:false`, "UNDO changed nothing", while restoring `VIEWSIZE`, and a
+second undo removed the edit. Check the entity by handle, not `extents`, which an undo does not
+shrink. Never reverse a move by moving back: a re-move with a slightly different
 offset leaves a drawing that is not the one you started with.
 
 **Load the `autocad-save-verification` skill before any save, SAVEAS, `plot_pdf`, DXF export,
@@ -142,8 +149,8 @@ genuinely cannot answer.
 | L3 | `(mcp:grid-map-in 24 16 "Model")` | does the layout read correctly, coarse | ~300–800 tok |
 | L3b | `drawing(save_as_dxf)` + `python -m autocad_mcp.probe_dxf` | anything exactly, incl. all text | **~0 tok** |
 | L4 | `view(get_screenshot, region=[l,t,r,b])` | this specific detail, visually | ~270 tok |
-| L4 | `view(get_screenshot, grid=true)` | where to crop, when no coordinates are known | ~360 tok |
-| L5 | `view(get_screenshot)` full window | overall read, match-to-reference-photo | 1,334 tok @1280 |
+| L4 | `view(get_screenshot, grid=true)` | where to crop, when no coordinates are known | ~260–360 tok, by window shape |
+| L5 | `view(get_screenshot)` full window | overall read, match-to-reference-photo | 1,334–1,886 tok @1280, by window shape |
 
 `entity(get)` returns real geometry and the contents of TEXT/MTEXT/ATTDEF, so **never
 screenshot to read a label**. Angles come back in degrees.
@@ -174,12 +181,14 @@ in `region`.
 - `region_dwg=[x1,y1,x2,y2]`: crop by drawing coordinates from `(mcp:sel-dump)` or
   `entity(get)`, in the current view. Overrides `region`. AutoCAD backend only; refused on
   twisted views, active layout viewports and tiled viewports, so use `grid=true` there.
-- `grid=true`: a preview (longest side 560) with red rules labelled in native window px.
+- `grid=true`: a preview (longest side always 560; `max_dimension` is ignored) with red rules
+  labelled in native window px.
   Read the labels and pass them back as `region` for the sharp crop.
 - `region="changed"`: crops to the canvas pixels that changed since the previous capture of
   this window. Take a `save_to` capture first as the 0-token baseline. With no baseline it
   errors and that capture becomes one; with no change it errors, which is itself the answer.
-  For local edits: a pan or zoom changes the whole canvas.
+  For local edits: a pan or zoom changes every pixel with something drawn on it, which is
+  nearly the whole canvas on a full drawing but only the UCS icon on an empty one.
 - `region="canvas"`: only the drawing area, no ribbon, tabs, palettes or command line.
 
 A minimized window is refused, because it captures black at full price. Restore it and retry.

@@ -530,6 +530,13 @@ class TestSemicolonEncoding:
 # ---------------------------------------------------------------------------
 
 
+def _aged(path: Path) -> Path:
+    """Backdate past any dispatch timeout: only files that old count as stale."""
+    old = time.time() - 3600
+    os.utime(path, (old, old))
+    return path
+
+
 class TestStaleIpcDetection:
     """_check_stale_ipc_files detects leftover files from timed-out dispatches."""
 
@@ -548,6 +555,7 @@ class TestStaleIpcDetection:
         with tempfile.TemporaryDirectory() as tmpdir:
             stale = Path(tmpdir) / "autocad_mcp_cmd_abc123def456.json"
             stale.write_text('{"request_id": "abc123def456"}')
+            _aged(stale)
             backend = self._backend_with_tmpdir(tmpdir)
             found = backend._check_stale_ipc_files()
             assert len(found) == 1
@@ -557,6 +565,7 @@ class TestStaleIpcDetection:
         with tempfile.TemporaryDirectory() as tmpdir:
             stale = Path(tmpdir) / "autocad_mcp_result_deadbeef1234.json"
             stale.write_text('{"ok": true}')
+            _aged(stale)
             backend = self._backend_with_tmpdir(tmpdir)
             found = backend._check_stale_ipc_files()
             assert len(found) == 1
@@ -569,13 +578,22 @@ class TestStaleIpcDetection:
                 "autocad_mcp_result_222222222222.json",
             ):
                 (Path(tmpdir) / name).write_text("{}")
+                _aged(Path(tmpdir) / name)
             backend = self._backend_with_tmpdir(tmpdir)
             assert len(backend._check_stale_ipc_files()) == 2
+
+    def test_fresh_file_is_another_servers_in_flight_request(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            (Path(tmpdir) / "autocad_mcp_cmd_111111111111.json").write_text("{}")
+            backend = self._backend_with_tmpdir(tmpdir)
+            assert backend._check_stale_ipc_files() == []
 
     def test_unrelated_files_ignored(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "some_other_file.json").write_text("{}")
             (Path(tmpdir) / "autocad_mcp_lisp_abc123.lsp").write_text("(+ 1 2)")
+            _aged(Path(tmpdir) / "some_other_file.json")
+            _aged(Path(tmpdir) / "autocad_mcp_lisp_abc123.lsp")
             backend = self._backend_with_tmpdir(tmpdir)
             assert backend._check_stale_ipc_files() == []
 

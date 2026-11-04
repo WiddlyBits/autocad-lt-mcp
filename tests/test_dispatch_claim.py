@@ -14,8 +14,11 @@ The IPC tests run the real _dispatch_unlocked against a temp dir, with the
 keystroke trigger replaced by a fake LISP side. The LISP checks are structural.
 """
 
+import json
+import os
 import re
 import sys
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -56,6 +59,25 @@ def _claim(ipc_dir):
     """What the v2 LISP does first: rename cmd_<id> to run_<id>, then hang."""
     for f in ipc_dir.glob("autocad_mcp_cmd_*.json"):
         f.rename(f.with_name(f.name.replace("_cmd_", "_run_")))
+
+
+async def _dispatch_answered(backend, ipc_dir, skip=None):
+    """Dispatch with a trigger that answers at once; returns its inject_esc values."""
+    esc = []
+
+    def answer(inject_esc=False):
+        esc.append(inject_esc)
+        mine = next(f for f in ipc_dir.glob("autocad_mcp_cmd_*.json") if f != skip)
+        rid = json.loads(mine.read_text())["request_id"]
+        (ipc_dir / f"autocad_mcp_result_{rid}.json").write_text(
+            json.dumps({"request_id": rid, "ok": True})
+        )
+
+    with patch.object(sys, "platform", "linux"), \
+            patch.object(backend, "_type_dispatch_trigger", side_effect=answer):
+        result = await backend._dispatch_unlocked("execute-lisp", {"code": "(+ 1 2)"})
+    assert result.ok
+    return esc
 
 
 class TestTimeoutClaim:
@@ -100,8 +122,30 @@ class TestTimeoutClaim:
 
     def test_run_files_count_as_stale(self, tmp_path):
         backend = _backend(tmp_path, version=2)
-        (tmp_path / "autocad_mcp_run_abc.json").write_text("{}")
+        run = tmp_path / "autocad_mcp_run_abc.json"
+        run.write_text("{}")
+        os.utime(run, (time.time() - 3600,) * 2)
         assert [p.name for p in backend._check_stale_ipc_files()] == ["autocad_mcp_run_abc.json"]
+
+    @pytest.mark.asyncio
+    async def test_another_servers_in_flight_file_is_left_alone(self, tmp_path):
+        """No ESC (it would clear grips) and no delete (it would time them out)."""
+        backend = _backend(tmp_path, version=2)
+        theirs = tmp_path / "autocad_mcp_cmd_otherserver.json"
+        theirs.write_text("{}")
+        esc = await _dispatch_answered(backend, tmp_path, skip=theirs)
+        assert esc == [False]
+        assert theirs.exists()
+
+    @pytest.mark.asyncio
+    async def test_aged_file_still_triggers_esc_recovery(self, tmp_path):
+        backend = _backend(tmp_path, version=2)
+        old = tmp_path / "autocad_mcp_run_timedout.json"
+        old.write_text("{}")
+        os.utime(old, (time.time() - 3600,) * 2)
+        esc = await _dispatch_answered(backend, tmp_path)
+        assert esc == [True]
+        assert not old.exists()
 
     def test_withdraw_reports_whether_file_existed(self, tmp_path):
         from autocad_mcp.backends.file_ipc import FileIPCBackend

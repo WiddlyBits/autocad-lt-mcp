@@ -71,10 +71,13 @@ async def drawing(
                     it succeeds only when the file is already the active
                     document and reports a failure naming the document it is
                     still in otherwise. Open the file from the AutoCAD UI.
-      info       — entity_count, layers, and extents {min:[x,y], max:[x,y]}
-                    (null when the drawing is empty). The cheapest way to
-                    confirm which document you are in and whether an edit
-                    landed — prefer it over a screenshot for both.
+      info       — entity_count, layers, and extents {min:[x,y], max:[x,y]}.
+                    extents are EXTMIN/EXTMAX: current space only (null on an
+                    empty Model tab even with entities on a layout), and an
+                    undo does not shrink them, so they don't prove it landed.
+                    The cheapest way to confirm which document you are in and
+                    whether an edit landed (by entity_count) — prefer it over
+                    a screenshot for both.
       save       — Save current drawing. data: {path?} (saves to path if given, else QSAVE)
                     Verified, not assumed: with a path, SAVEAS renames the
                     active document to the file it wrote, and the result is
@@ -502,9 +505,9 @@ async def view(
                      — Crop to a pixel rect of the captured window, applied
                         BEFORE downscaling, so the crop keeps full source
                         resolution. This is the biggest lever: a 500x400 crop
-                        costs ~270 tokens and stays sharp, where the whole
-                        1928x1218 window costs ~1,334 even downscaled to 1280 —
-                        and that downscale is what made its small text
+                        costs ~270 tokens and stays sharp, where a whole 1928x1218
+                        window costs ~1,334 even downscaled to 1280 (2880x2560:
+                        1,886) — and that downscale is what made its small text
                         unreadable. Use it for any detail check.
                         region="canvas" keeps only the drawing area (no
                         ribbon, tabs, palettes, command line).
@@ -513,7 +516,8 @@ async def view(
                         edit, a region-sized image instead of the whole
                         window. Take a save_to capture first as the 0-token
                         baseline. The resolved px region is reported back.
-      grid=true      — Low-res preview (longest side 560, ~360 tokens) with red
+      grid=true      — Low-res preview (longest side always 560, max_dimension
+                        is ignored; ~260-360 tokens by window shape) with red
                         rules labelled in native window px. Read the labels and
                         pass them straight back as region for the sharp crop.
       region_dwg [x1, y1, x2, y2]

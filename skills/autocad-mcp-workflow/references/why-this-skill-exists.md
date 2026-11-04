@@ -23,7 +23,8 @@ batching to `.scr` is a rule in `SKILL.md`, not a tip in a reference — it was 
 reference file and nobody read it.
 
 **`mcp_select.lsp` exists because of 2026-08-22's stumbles:** `(ssget "_I")` was nil every
-time (the dispatch trigger clears the implied set); the handoff was rediscovered live over
+time (the server then posted ESC before every dispatch, which clears the implied set; since
+`1f6f38c` only stale-file recovery does, and the live selection reads, measured 2026-11-04); the handoff was rediscovered live over
 five questions; one selection took four round trips to characterise; an un-echoed
 `ssget "_P"` edit left strays on `TITLE`; and a highlight outside the view confirmed nothing.
 Each became a rule: HS handoff, one `sel-dump`, `sel-show` echo, handle lists, the guard.

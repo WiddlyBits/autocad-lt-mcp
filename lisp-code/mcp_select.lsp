@@ -25,24 +25,24 @@
 ;;; ---------------------------------------------------------------------
 ;;;
 ;;; ---------------------------------------------------------------------
-;;; THE SELECTION CANNOT BE PULLED. IT HAS TO BE HANDED OVER.
+;;; READ THE LIVE SELECTION FIRST. HS IS THE FALLBACK.
 ;;;
-;;; The dispatcher works by typing "(c:mcp-dispatch)" at the command line, and
-;;; starting a command is exactly what discards AutoCAD's implied (grip)
-;;; selection. Measured that day: (ssget "_I") returned NONE on 4 of 4
-;;; attempts and (ssgetfirst) returned (-1 -1), with PICKFIRST=1, PICKADD=2,
-;;; CMDACTIVE=0. This is not a system-variable problem and no amount of
-;;; retrying fixes it.
+;;; The dispatcher types "(c:mcp-dispatch)" at the command line, and that alone
+;;; does not clear the implied (grip) selection. ESC does, and the server sends
+;;; it only when recovering from stale IPC files. Any command that consumes the
+;;; selection clears it too.
 ;;;
 ;;; mcp:sel therefore reads, in order:
-;;;   1. *mcp-pickfirst*  - captured by a command reactor before the command
-;;;                         started, if this AutoCAD has reactors at all
-;;;   2. *mcp-sel*        - stashed by c:HS, which the user types deliberately
-;;;   3. (ssget "_P")     - the previous selection set, which works only after
-;;;                         SELECT + Enter + Enter and is clobbered by the
-;;;                         next command to run
+;;;   1. (cadr (ssgetfirst)) - the grips up right now. A hit also refreshes the
+;;;                            stash, so a verb that clears the grips cannot
+;;;                            make the next mcp:sel return an older set.
+;;;   2. *mcp-sel*           - stashed by c:HS, or by the last live read
 ;;;
-;;; Rungs 1 and 2 keep handle strings, not selection-set objects. A handle
+;;; There is no third rung. (ssget "_P") returned 20 entities from an unrelated
+;;; (ssget "_X") with 2 grips up (measured 2026-11-04), and verbs take mcp:sel
+;;; directly, so a leftover set could be edited.
+;;;
+;;; The stash keeps handle strings, not selection-set objects. A handle
 ;;; survives an intervening command, the dispatch boundary, and the ~128 open
 ;;; selection-set ceiling; an sset survives none of those reliably.
 ;;; ---------------------------------------------------------------------
@@ -71,9 +71,9 @@
 ;; Tunables
 ;; -----------------------------------------------------------------------
 
-;; Dump ceiling. A handed-over selection is tens of entities; a stray
-;; (ssget "_P") after a select-all is not, and the 10 s IPC timeout does not
-;; care which one you meant. Truncates and says so.
+;; Dump ceiling. A handed-over selection is tens of entities; a select-all is
+;; not, and the 10 s IPC timeout does not care which one you meant. Truncates
+;; and says so.
 (setq *mcp-max-selection* 200)
 
 ;; Fraction of the set's bounding box added as margin when mcp:sel-show zooms.
@@ -85,12 +85,10 @@
 ;; State
 ;; -----------------------------------------------------------------------
 
-;; Both hold lists of handle strings. A handle survives what a selection-set
-;; object does not: an intervening command, the dispatch boundary, and the
-;; ~128 open-sset ceiling.
+;; A list of handle strings. A handle survives what a selection-set object does
+;; not: an intervening command, the dispatch boundary, and the ~128 open-sset
+;; ceiling.
 (setq *mcp-sel* nil)
-(setq *mcp-pickfirst* nil)
-(setq *mcp-cmd-reactor* nil)
 
 ;; -----------------------------------------------------------------------
 ;; Handles - the durable identity
@@ -136,33 +134,13 @@
 ;; Handoff
 ;; -----------------------------------------------------------------------
 
-(defun mcp:on-cmd (reactor args / gf)
-  "Command reactor callback: stash the implied selection before the command
-   that is about to start discards it.
+(defun mcp:implied ( / ss)
+  "Handles of the grips up right now, or nil.
 
-   Whether this ever fires is an open question on LT - see mcp:reactor-init.
-   It is written to be harmless if it does not: it only ever writes a global."
-  (setq gf (ssgetfirst))
-  (if (cadr gf) (setq *mcp-pickfirst* (mcp:handles-of (cadr gf))))
-  (princ)
-)
-
-(defun mcp:reactor-init ( )
-  "Register the command reactor if this AutoCAD has reactors at all.
-
-   LT's VLISP support is partial, and the symbol existing would not prove the
-   event fires early enough to still see the implied selection - only a live
-   test with something grip-selected proves that. Returns what happened, so
-   the answer is a fact rather than an assumption."
-  (cond
-    ((not (member 'vlr-command-reactor (atoms-family 1))) "NO-REACTORS")
-    (*mcp-cmd-reactor* "ALREADY-REGISTERED")
-    (t
-     (setq *mcp-cmd-reactor*
-           (vlr-command-reactor nil '((:vlr-commandWillStart . mcp:on-cmd))))
-     (if *mcp-cmd-reactor* "REGISTERED" "FAILED")
-    )
-  )
+   Type-checked because (ssgetfirst) returned (-1 -1) on 2026-08-22, and
+   sslength errors on anything but a selection set."
+  (setq ss (cadr (ssgetfirst)))
+  (if (= (type ss) 'PICKSET) (mcp:handles-of ss))
 )
 
 (defun c:HS ( / gf n)
@@ -173,7 +151,7 @@
    because the next command to run is always the dispatcher."
   (setq gf (ssgetfirst))
   (setq ss (cadr gf))
-  (if (null ss) (setq ss (ssget "_I")))
+  (if (/= (type ss) 'PICKSET) (setq ss (ssget "_I")))
   (if ss
     (progn
       (setq *mcp-sel* (mcp:handles-of ss))
@@ -186,27 +164,23 @@
   (princ)
 )
 
-(defun mcp:sel ( / ss)
-  "The handed-over selection, as a list of handle strings.
+(defun mcp:sel ( / live)
+  "The selection, as a list of handle strings: the live grips, else the stash.
 
-   Reads the three rungs in order of how deliberate they are. Dead handles are
-   dropped, so a stash that has gone stale degrades to the next rung instead
-   of returning entities that no longer exist."
-  (cond
-    ((mcp:live-handles *mcp-pickfirst*))
-    ((mcp:live-handles *mcp-sel*))
-    ((setq ss (ssget "_P")) (mcp:handles-of ss))
-    (t nil)
+   Dead handles are dropped, so a stash that has gone stale reads as empty
+   instead of returning entities that no longer exist."
+  (if (setq live (mcp:implied))
+    (setq *mcp-sel* live)
+    (mcp:live-handles *mcp-sel*)
   )
 )
 
 (defun mcp:sel-source ( )
   "Which rung mcp:sel would answer from. Cheap, and it is the difference
-   between \"you selected these\" and \"these happen to be left over\"."
+   between \"you have these selected now\" and \"these were handed over earlier\"."
   (cond
-    ((mcp:live-handles *mcp-pickfirst*) "reactor")
+    ((mcp:implied) "implied")
     ((mcp:live-handles *mcp-sel*) "HS")
-    ((ssget "_P") "previous")
     (t "none")
   )
 )
@@ -339,7 +313,7 @@
 ;; mcp:sel-show - the echo that costs nothing
 ;; -----------------------------------------------------------------------
 
-(defun mcp:sel-show ( / lst ss box dx dy pad p1 p2 n saved-cvport)
+(defun mcp:sel-show ( / lst src ss box dx dy pad p1 p2 n saved-cvport)
   "Highlight the handed-over selection AND zoom to it.
 
    The zoom is not a nicety. Highlighting alone was tried on 2026-08-22 on two
@@ -350,6 +324,8 @@
    any mutation and say what you counted."
   (mcp:begin-output)
   (setq lst (mcp:sel))
+  ;; Read before sssetfirst below, which makes every answer look implied.
+  (setq src (mcp:sel-source))
   (setq ss (mcp:by-handles lst))
   (setq n (if ss (sslength ss) 0))
   (if ss
@@ -376,7 +352,7 @@
   )
   (mcp:end-output)
   (strcat "{\"shown\":" (itoa n)
-          ",\"source\":\"" (mcp:sel-source) "\"}")
+          ",\"source\":\"" src "\"}")
 )
 
 ;; -----------------------------------------------------------------------
@@ -848,5 +824,5 @@
   out
 )
 
-(princ "\nmcp_select.lsp loaded: c:HS mcp:sel mcp:sel-dump mcp:sel-show mcp:by-handles mcp:guard mcp:reactor-init mcp:whoami mcp:verify-write mcp:line-uniform mcp:align-axis mcp:sel-move mcp:text-sub")
+(princ "\nmcp_select.lsp loaded: c:HS mcp:sel mcp:sel-dump mcp:sel-show mcp:by-handles mcp:guard mcp:whoami mcp:verify-write mcp:line-uniform mcp:align-axis mcp:sel-move mcp:text-sub")
 (princ)

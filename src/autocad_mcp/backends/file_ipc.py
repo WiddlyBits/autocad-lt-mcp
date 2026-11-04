@@ -293,7 +293,7 @@ class FileIPCBackend(AutoCADBackend):
         result_file = self._ipc_dir / f"autocad_mcp_result_{request_id}.json"
         tmp_file = cmd_file.with_suffix(".tmp")
 
-        # Detect and remove leftover IPC files from a previous timed-out dispatch.
+        # Detect and remove leftover IPC files from a timed-out dispatch.
         # ESC injection is targeted: only fired when stale files are present, not
         # unconditionally. Blanket ESC was interrupting user commands (A-4 T2).
         stale = self._check_stale_ipc_files()
@@ -391,11 +391,21 @@ class FileIPCBackend(AutoCADBackend):
         the current request, so any match predates the current call. Presence
         of these files means a prior timed-out mutating dispatch may have left
         AutoCAD mid-command and ESC recovery is warranted.
+
+        Only files at least TIMEOUT old count: every server shares this
+        directory, and a younger file may be another server's in-flight request.
+        Deleting that would time it out, and the ESC would clear the user's grips.
         """
         found: list[Path] = []
+        now = time.time()
         try:
             for pattern in ("autocad_mcp_cmd_*.json", "autocad_mcp_run_*.json", "autocad_mcp_result_*.json"):
-                found.extend(self._ipc_dir.glob(pattern))
+                for f in self._ipc_dir.glob(pattern):
+                    try:
+                        if now - f.stat().st_mtime >= TIMEOUT:
+                            found.append(f)
+                    except OSError:
+                        pass  # its owner just cleaned it up
         except OSError:
             pass
         return found
@@ -643,7 +653,6 @@ class FileIPCBackend(AutoCADBackend):
         '(strcat "{\\"dispatch\\":" (if (type c:mcp-dispatch) "true" "false")'
         ' ",\\"probes\\":" (if (type mcp:text-dump-in) "true" "false")'
         ' ",\\"select\\":" (if (type mcp:sel-dump) "true" "false")'
-        ' ",\\"reactor_fn\\":" (if (type mcp:on-cmd) "true" "false")'
         ' ",\\"dwg\\":\\"" (getvar "DWGNAME") "\\""'
         ' ",\\"ctab\\":\\"" (getvar "CTAB") "\\""'
         ' ",\\"tilemode\\":" (itoa (getvar "TILEMODE"))'

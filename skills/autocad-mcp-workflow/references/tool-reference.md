@@ -41,8 +41,9 @@ Loaded by `system(operation="init")`. Rationale in Rule 1 of the main skill; thi
 
 - `c:HS` — what **Gianni** types (with objects selected: `HS` + Enter). It stashes handles,
   which survive the next command.
-- `(mcp:sel)` — the handed-over selection as a handle list: reactor snapshot, then the `HS`
-  stash, then `(ssget "_P")`, dropping dead handles at each rung.
+- `(mcp:sel)` — the selection as a handle list: the grips up right now, then the stash (from
+  `HS` or the last live read), dropping dead handles. Nothing else, so `sel-dump` reports
+  `source` `implied`, `HS` or `none`.
 - `(mcp:sel-dump)` — JSON: `source`, `count`, `shown`/`truncated`, `dwg`, `ctab`, union `bbox`,
   and per entity `handle`, `type`, `layer`, `space` plus type-correct geometry — LINE
   `p1`/`p2`/`length`/`angle`, CIRCLE/ARC `center`/`radius`, TEXT `text`/`insertion`/`align`/
@@ -54,9 +55,6 @@ Loaded by `system(operation="init")`. Rationale in Rule 1 of the main skill; thi
   `DWGNAME`, with or without the extension (`"DI-02"` and `"DI-02.dwg"` both match `DI-02.dwg`);
   `tab` matches `CTAB`; `nil` or `""` skips that check.
 - `(mcp:undo-begin label)` / `(mcp:undo-end)` — one named UNDO group around a hand-written edit.
-- `(mcp:reactor-init)` — registers the command reactor if this AutoCAD has one. Returns
-  `NO-REACTORS` / `REGISTERED` / `ALREADY-REGISTERED` / `FAILED`. **UNTESTED on LT 2027**
-  whether the event fires before AutoCAD discards the implied selection.
 
 Verbs, all `(handles dwg tab ...)`, each in its own named UNDO group, each returning counts:
 

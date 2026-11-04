@@ -34,7 +34,6 @@ PUBLIC = [
     "mcp:sel-show",
     "mcp:by-handles",
     "mcp:guard",
-    "mcp:reactor-init",
     "mcp:whoami",
     "mcp:verify-write",
     "mcp:line-uniform",
@@ -122,12 +121,10 @@ class TestNoActiveX:
         offenders = [tok for tok in ("vla-", "vlax-", "vl-load-com") if tok in code]
         assert offenders == [], f"ActiveX in mcp_select.lsp: {offenders}"
 
-    def test_reactor_registration_is_guarded(self):
-        """vlr- is not vla-, but LT's VLISP support is partial and calling a
-        reactor function that does not exist is an error, not a nil."""
-        body = defun_body(source(SELECT_LSP), "mcp:reactor-init")
-        assert "atoms-family" in body
-        assert body.index("atoms-family") < body.index("(vlr-command-reactor")
+    def test_no_reactor(self):
+        """Removed 2026-11-04. It fired on typed commands, not dispatches, and a
+        stale snapshot outranked a deliberate HS. A live read covers the case."""
+        assert "vlr-" not in strip_lisp(source(SELECT_LSP))
 
 
 class TestEveryVerbGuards:
@@ -178,20 +175,41 @@ class TestEveryVerbGuards:
 
 
 class TestSelectionContract:
-    def test_sel_never_reads_the_implied_selection(self):
-        """(ssget "_I") returned NONE on 4 of 4 attempts on 2026-08-22, with
-        PICKFIRST=1. Typing the dispatch trigger is what discards it. A rung
-        that is always nil is not a fallback, it is a wasted round trip."""
-        code = strip_lisp(source(SELECT_LSP))
-        assert '(ssget "_I")' not in code
+    def test_sel_reads_the_live_selection_before_the_stash(self):
+        """With 2 grips up, sel-dump answered from a leftover set (2026-11-04)."""
+        code = strip_lisp(defun_body(source(SELECT_LSP), "mcp:sel"))
+        assert code.index("(mcp:implied)") < code.index("*mcp-sel*")
 
-    def test_sel_prefers_deliberate_handoff_over_leftovers(self):
-        """(ssget "_P") is whatever command ran last, which is not necessarily
-        what the user meant. It is the last rung, never the first."""
-        body = defun_body(source(SELECT_LSP), "mcp:sel")
-        cond = body[body.index("(cond") :]
-        assert cond.index("*mcp-pickfirst*") < cond.index("*mcp-sel*")
-        assert cond.index("*mcp-sel*") < cond.index('(ssget "_P")')
+    def test_a_live_read_refreshes_the_stash(self):
+        """A verb can clear the grips. The next mcp:sel must return that set, not
+        an older handoff."""
+        body = strip_lisp(defun_body(source(SELECT_LSP), "mcp:sel"))
+        assert "(setq *mcp-sel* live)" in body
+
+    def test_implied_is_type_checked(self):
+        """(ssgetfirst) returned (-1 -1) on 2026-08-22, and sslength errors on it."""
+        body = strip_lisp(defun_body(source(SELECT_LSP), "mcp:implied"))
+        assert "(ssgetfirst)" in body and "PICKSET" in body
+
+    @pytest.mark.parametrize("fn", ["mcp:sel", "mcp:sel-source"])
+    def test_no_previous_selection_rung(self, fn):
+        """(ssget "_P") returned 20 entities from an unrelated (ssget "_X") with
+        2 grips up (2026-11-04), and verbs take mcp:sel directly. Raw body: the
+        mask blanks string literals, so this would pass by never running."""
+        body = defun_body(source(SELECT_LSP), fn)
+        assert '(ssget "_P")' not in body and "previous" not in body
+
+    def test_source_names_each_rung(self):
+        body = defun_body(source(SELECT_LSP), "mcp:sel-source")
+        for rung in ('"implied"', '"HS"', '"none"'):
+            assert rung in body
+
+    def test_sel_show_reads_source_before_highlighting(self):
+        """sssetfirst makes the shown set implied, so reading the source after it
+        reports "implied" for every set, whatever rung it came from."""
+        body = strip_lisp(defun_body(source(SELECT_LSP), "mcp:sel-show"))
+        assert body.index("(mcp:sel-source)") < body.index("(sssetfirst")
+        assert body.count("(mcp:sel-source)") == 1
 
     def test_the_stash_holds_handles_not_selection_sets(self):
         """A handle survives an intervening command, the dispatch boundary and
