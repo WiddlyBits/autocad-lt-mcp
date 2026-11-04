@@ -5,7 +5,7 @@ carries the reasons. The session-cost numbers live in the global CLAUDE.md; re-m
 transcript offline with
 
 ```bash
-uv run python -m tests.token_audit ~/.claude/projects/C--Users-Gianni/<session>.jsonl
+uv run python -m tests.token_audit ~/.claude/projects/<folder-slug>/<session>.jsonl
 ```
 
 **Session length and request count are the cost, images second.** The 2026-08-11 panel
