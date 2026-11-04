@@ -144,8 +144,8 @@ def dwg_bbox_to_px(
     def px(x, y):
         return ox + sw / 2 + (x - cx) * s, oy + sh / 2 - (y - cy) * s
 
-    (l, t), (r, b) = px(min(x1, x2), max(y1, y2)), px(max(x1, x2), min(y1, y2))
-    return math.floor(l), math.floor(t), math.ceil(r), math.ceil(b)  # never clip the box
+    (left, t), (r, b) = px(min(x1, x2), max(y1, y2)), px(max(x1, x2), min(y1, y2))
+    return math.floor(left), math.floor(t), math.ceil(r), math.ceil(b)  # never clip the box
 
 
 def changed_bbox(
@@ -170,8 +170,8 @@ def changed_bbox(
     box = diff.getbbox()
     if box is None:
         return None
-    l, t, r, b = box[0] + ox, box[1] + oy, box[2] + ox, box[3] + oy
-    return max(0, l - pad), max(0, t - pad), min(cur.width, r + pad), min(cur.height, b + pad)
+    left, t, r, b = box[0] + ox, box[1] + oy, box[2] + ox, box[3] + oy
+    return max(0, left - pad), max(0, t - pad), min(cur.width, r + pad), min(cur.height, b + pad)
 
 
 def _resize_and_encode(
@@ -438,11 +438,11 @@ class Win32ScreenshotProvider(ScreenshotProvider):
             ]
             if not rects:
                 return None
-            l, t, r, b = max(rects, key=lambda q: (q[2] - q[0]) * (q[3] - q[1]))
+            left, t, r, b = max(rects, key=lambda q: (q[2] - q[0]) * (q[3] - q[1]))
             # Children move with the real window rect, which sits at (-25600, -25600)
             # while minimized -- not with the placement rect the capture is sized from.
             wl, wt, _, _ = win32gui.GetWindowRect(self._hwnd)
-        return l - wl, t - wt, r - wl, b - wt
+        return left - wl, t - wt, r - wl, b - wt
 
     def capture(
         self,
