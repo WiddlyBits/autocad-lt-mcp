@@ -142,6 +142,7 @@ genuinely cannot answer.
 | L3 | `(mcp:grid-map-in 24 16 "Model")` | does the layout read correctly, coarse | ~300–800 tok |
 | L3b | `drawing(save_as_dxf)` + `python -m autocad_mcp.probe_dxf` | anything exactly, incl. all text | **~0 tok** |
 | L4 | `view(get_screenshot, region=[l,t,r,b])` | this specific detail, visually | ~270 tok |
+| L4 | `view(get_screenshot, grid=true)` | where to crop, when no coordinates are known | ~360 tok |
 | L5 | `view(get_screenshot)` full window | overall read, match-to-reference-photo | 1,334 tok @1280 |
 
 `entity(get)` returns real geometry and the contents of TEXT/MTEXT/ATTDEF, so **never
@@ -166,6 +167,22 @@ whole window — **always pass it for a detail check.** `save_to="….png"` writ
 attaches nothing. `max_dimension` (default 1280, clamped 64–2576); halving it roughly
 quarters the cost. Every capture reports `est_tokens`. Non-levers: `quality` (JPEG) shrinks
 bytes, not tokens, and nothing above 2576 px survives the vision API's own downscale.
+
+**Finding the crop without a full-window capture.** A string region's resolved px come back
+in `region`.
+
+- `region_dwg=[x1,y1,x2,y2]`: crop by drawing coordinates from `(mcp:sel-dump)` or
+  `entity(get)`, in the current view. Overrides `region`. AutoCAD backend only; refused on
+  twisted views, active layout viewports and tiled viewports, so use `grid=true` there.
+- `grid=true`: a preview (longest side 560) with red rules labelled in native window px.
+  Read the labels and pass them back as `region` for the sharp crop.
+- `region="changed"`: crops to the canvas pixels that changed since the previous capture of
+  this window. Take a `save_to` capture first as the 0-token baseline. With no baseline it
+  errors and that capture becomes one; with no change it errors, which is itself the answer.
+  For local edits: a pan or zoom changes the whole canvas.
+- `region="canvas"`: only the drawing area, no ribbon, tabs, palettes or command line.
+
+A minimized window is refused, because it captures black at full price. Restore it and retry.
 
 Reserve a full-window capture for what only pixels answer — layout, overlap, match to a
 reference photo — and batch it to a checkpoint after a group of edits, not after each one.
