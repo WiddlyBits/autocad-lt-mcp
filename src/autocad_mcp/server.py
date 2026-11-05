@@ -807,5 +807,9 @@ def main():
         ],
     )
 
+    # Loading numpy's C extension while the stdin read is pending blocks until that read
+    # returns, and the backend is only picked at the first tool call: import unconditionally.
+    import autocad_mcp.backends.ezdxf_backend  # noqa: F401
+
     log.info("autocad_mcp_starting", version="3.1.0")
     mcp.run(transport="stdio")
