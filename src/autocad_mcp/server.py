@@ -660,6 +660,8 @@ async def system(
                       mcp_dispatch.lsp. Re-loading every time is deliberate:
                       it is the fix for edited-on-disk .lsp files whose old
                       definitions stay resident and answer plausibly.
+                      With AutoCAD gone after this server has used it: ok:false,
+                      "AutoCAD not running". Reopen it and init again, no restart.
       execute_lisp  — Execute arbitrary AutoLISP code (File IPC only). data: {code}
       command_line  — Read-only: last n command-line history lines plus the live
                       prompt row. Works while a command is waiting for input,

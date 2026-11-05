@@ -21,6 +21,9 @@ log = structlog.get_logger()
 
 _backend: AutoCADBackend | None = None
 _init_lock = asyncio.Lock()
+# Once this process has found an AutoCAD window, "no window" means AutoCAD went
+# away, not "run headless". ezdxf would answer ok:true from an empty drawing.
+_autocad_seen = False
 
 
 async def get_backend() -> AutoCADBackend:
@@ -29,7 +32,7 @@ async def get_backend() -> AutoCADBackend:
     Uses an asyncio Lock to prevent concurrent initialization races
     when multiple MCP tool calls arrive simultaneously.
     """
-    global _backend
+    global _backend, _autocad_seen
     if _backend is not None:
         return _backend
 
@@ -43,8 +46,15 @@ async def get_backend() -> AutoCADBackend:
         if backend_name == "file_ipc":
             from autocad_mcp.backends.file_ipc import FileIPCBackend
 
+            _autocad_seen = True
             backend = FileIPCBackend()
         else:
+            if _autocad_seen:
+                raise RuntimeError(
+                    "autocad_not_running: AutoCAD not running: no AutoCAD window found, and this server "
+                    "was using it. Reopen AutoCAD and a drawing, then system(operation='init'). "
+                    "Not falling back to an empty ezdxf drawing."
+                )
             from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
 
             backend = EzdxfBackend()
@@ -91,7 +101,7 @@ def _error(e: Exception, context: str = "") -> str:
     else:
         hint = "Unexpected error. Check AutoCAD is responsive and retry."
 
-    return _json({"error": f"[{context}] {msg}" if context else msg, "hint": hint})
+    return _json({"ok": False, "error": f"[{context}] {msg}" if context else msg, "hint": hint})
 
 
 # ---------------------------------------------------------------------------
