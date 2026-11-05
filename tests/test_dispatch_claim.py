@@ -20,7 +20,7 @@ import re
 import sys
 import time
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -38,6 +38,22 @@ def _backend(tmp_path, version):
     backend._status_file = tmp_path / "mcp_status.txt"
     backend._dispatcher_version = version
     return backend
+
+
+class TestDrawingCreateIsRefused:
+    """drawing(create) ran ERASE and PURGE on the active document and returned
+    ok:true: on 2026-11-04 it took a working file's Layout1 from 26 entities to 1."""
+
+    @pytest.mark.asyncio
+    async def test_refused_before_anything_reaches_autocad(self, tmp_path):
+        backend = _backend(tmp_path, 2)
+        backend._dispatch = AsyncMock(side_effect=AssertionError("dispatcher used"))
+        result = await backend.drawing_create("scratch")
+        assert not result.ok
+        assert "nothing was changed" in result.error
+
+    def test_the_erasing_handler_is_gone(self):
+        assert "drawing-create" not in DISPATCH_LSP.read_text(encoding="utf-8")
 
 
 async def _run(backend, command, on_trigger=lambda d: None):

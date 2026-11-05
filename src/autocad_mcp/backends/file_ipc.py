@@ -559,7 +559,16 @@ class FileIPCBackend(AutoCADBackend):
         return result
 
     async def drawing_create(self, name: str | None = None) -> CommandResult:
-        return await self._dispatch("drawing-create", {"name": name})
+        # Refused here, not in the LISP: a resident mcp_dispatch.lsp keeps its old
+        # handler until AutoCAD restarts, and that handler erases the active document.
+        return CommandResult(
+            ok=False,
+            error=(
+                "drawing(create) is not available on AutoCAD: LISP cannot open a new "
+                "document, and nothing was changed. Create the drawing in the AutoCAD UI, "
+                "or open a copy of a file from disk, then use system(switch_doc)."
+            ),
+        )
 
     async def drawing_purge(self) -> CommandResult:
         return await self._dispatch("drawing-purge", {})

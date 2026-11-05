@@ -100,10 +100,11 @@ verb or hand-written — must begin with the guard:**
 The guard refuses when `CTAB` differs. To edit Model from a layout: `setvar CTAB`,
 `(mcp:whoami)`, edit, verify, restore `CTAB`, then save.
 
-**Never call `drawing(create)` on the AutoCAD backend.** It makes no new drawing: it runs ERASE
-and PURGE on the *active document*, then returns `ok:true` naming that document. Run on a working
-file 2026-11-04: Layout1 went from 26 entities to 1, Model from 29,745 to 29,613, 3 layers gone.
-Two `drawing(undo)`s restored it. For a scratch drawing, open a copy of a file from disk.
+**Never call `drawing(create)` on the AutoCAD backend.** It is refused now, but a server from
+before that refusal runs ERASE and PURGE on the *active document* and returns `ok:true` naming
+it. Run on a working file 2026-11-04: Layout1 went from 26 entities to 1, Model from 29,745 to
+29,613, 3 layers gone. Two `drawing(undo)`s restored it. For a scratch drawing, open a copy of a
+file from disk.
 
 **To change drawings, use `system(switch_doc, data={"dwg": "<exact tab title>"})`** instead
 of asking for a click. It sends no keystrokes, works with Start in front, re-initializes the

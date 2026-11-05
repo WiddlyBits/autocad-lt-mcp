@@ -65,6 +65,8 @@ async def drawing(
 
     Operations:
       create     — Create a new empty drawing. data: {name?}
+                    ezdxf backend only. On the AutoCAD backend this is refused
+                    and changes nothing: LISP cannot open a new document.
       open       — Open an existing drawing. data: {path}
                     On the AutoCAD backend this cannot switch documents:
                     AutoCAD refuses OPEN from AutoLISP and LT has no COM, so

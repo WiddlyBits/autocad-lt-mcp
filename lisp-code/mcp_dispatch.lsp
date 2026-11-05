@@ -569,8 +569,8 @@
                ;; nothing either way, which is how the unconditional
                ;; "opened: <path>" that used to sit here reported an open that
                ;; never happened: confirmed against LT 2027, DWGNAME unchanged
-               ;; and no new tab. Same reason mcp-cmd-drawing-create refuses to
-               ;; use _.NEW.
+               ;; and no new tab. _.NEW hits the same wall, which is why
+               ;; drawing(create) is refused on this backend.
                ;;
                ;; The attempt is still made rather than replaced by a flat
                ;; refusal, because a refusal is a claim about AutoCAD's
@@ -676,9 +676,6 @@
      (mcp-cmd-create-leader params-json))
 
     ;; --- Drawing management ---
-    ((= cmd-name "drawing-create")
-     (mcp-cmd-drawing-create params-json))
-
     ((= cmd-name "drawing-get-variables")
      (mcp-cmd-drawing-get-variables params-json))
 
@@ -1057,20 +1054,6 @@
       )
     )
   )
-)
-
-;; --- Drawing create implementation ---
-
-(defun mcp-cmd-drawing-create (params / ss)
-  "Reset current drawing to a clean state (erase all, purge, reset to layer 0).
-   Using _.NEW would create a new document tab with a fresh LISP namespace,
-   breaking the IPC dispatcher. This approach preserves the dispatcher."
-  (if (setq ss (ssget "_X"))
-    (progn (command "_.ERASE" ss "") (setq ss nil))
-  )
-  (setvar "CLAYER" "0")
-  (command "_.-PURGE" "_ALL" "*" "_N")
-  (cons T (strcat "{\"drawing\":\"" (mcp-escape-string (getvar "DWGNAME")) "\"}"))
 )
 
 ;; --- P&ID command implementations ---

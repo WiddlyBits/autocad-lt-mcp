@@ -315,7 +315,6 @@ class TestDispatchMapCoverage:
         "drawing-info",
         "drawing-save",
         "drawing-save-as-dxf",
-        "drawing-create",
         "drawing-purge",
         "drawing-open",
         "drawing-get-variables",
