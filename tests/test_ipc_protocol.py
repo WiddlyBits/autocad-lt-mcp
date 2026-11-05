@@ -781,7 +781,8 @@ class TestStaleHwnd:
                 with patch.object(backend, "_reacquire_hwnd", return_value=False):
                     result = await backend._dispatch_unlocked("ping", {})
         assert result.ok is False
-        assert result.error == "autocad_not_found"
+        assert result.error.startswith("autocad_not_found")
+        assert "AutoCAD not running" in result.error
 
 
 class TestPreBatchDocCheck:

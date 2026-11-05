@@ -234,13 +234,40 @@ class FileIPCBackend(AutoCADBackend):
         except OSError:
             pass
 
+    def _hwnd_alive(self) -> bool | None:
+        """Does the cached handle still name a window? None where win32 is absent."""
+        try:
+            import win32gui
+        except ImportError:
+            return None
+        return self._hwnd is not None and bool(win32gui.IsWindow(self._hwnd))
+
     async def status(self) -> CommandResult:
+        alive = self._hwnd_alive()
         info = {
             "backend": "file_ipc",
             "hwnd": self._hwnd,
+            "hwnd_alive": alive,
             "ipc_dir": str(self._ipc_dir),
             "capabilities": {k: v for k, v in self.capabilities.__dict__.items()},
         }
+        if alive is False:
+            # The status file and the load time both describe the session that
+            # died, so they would read as idle and stale:false.
+            info["mcp_status"] = "unknown"
+            info["dispatcher"] = {
+                "version": self._dispatcher_version,
+                "stale": None,
+                "note": "unknown: the AutoCAD window is gone.",
+            }
+            return CommandResult(
+                ok=False,
+                error=(
+                    f"autocad_not_running: AutoCAD not running or restarted (window handle {self._hwnd} "
+                    "is dead). Reopen it if it closed, then system(operation='init')."
+                ),
+                payload=info,
+            )
         try:
             info["mcp_status"] = self._status_file.read_text(encoding="utf-8").strip()
         except OSError:
@@ -314,7 +341,7 @@ class FileIPCBackend(AutoCADBackend):
                 if self._hwnd is None or not win32gui.IsWindow(self._hwnd):
                     log.warning("stale_hwnd_detected", hwnd=self._hwnd)
                     if not self._reacquire_hwnd():
-                        return CommandResult(ok=False, error="autocad_not_found")
+                        return CommandResult(ok=False, error="autocad_not_found: AutoCAD not running (no drawing window found)")
             except ImportError:
                 pass
 

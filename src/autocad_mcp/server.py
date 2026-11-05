@@ -650,7 +650,8 @@ async def system(
                       libraries are live (dispatch/probes/select), the active
                       `dwg` and `ctab`, `tilemode` and `pickfirst`. Run this
                       first — it answers in one call what otherwise takes six.
-      health        — Quick health check (ping backend).
+                      A dead AutoCAD window: ok:false with hwnd_alive:false.
+      health       — Quick health check (ping backend).
       get_backend   — Return current backend name and capabilities.
       runtime       — Return process/runtime details for spawn diagnostics.
       init          — Re-initialize the backend, re-acquire the window handle

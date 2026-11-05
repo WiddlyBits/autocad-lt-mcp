@@ -36,9 +36,10 @@ and pick ezdxf, which answers `ok:true` against an empty in-memory drawing while
 open. If `probes` or `select` comes back false, say so and stop too — without them the session
 is hand-rolled AutoLISP.
 
-**`status` with no `preflight` block means AutoCAD may be gone.** Check the process before
-`init`: with AutoCAD closed, `status` still said `idle`, `stale:false` on the dead hwnd, and
-`init` landed on ezdxf and returned `ok:true`, `entity_count:0` (2026-11-04).
+**`ok:false` with `autocad_not_running` means AutoCAD is closed or was restarted.** `status`
+reports `hwnd_alive:false` and `init` refuses ezdxf once the server has used AutoCAD. Reopen
+it if needed and run `init`; no server restart. A server restarted while AutoCAD is closed
+still starts on ezdxf, which the stop above catches.
 
 ## Rule 1: the selection contract
 

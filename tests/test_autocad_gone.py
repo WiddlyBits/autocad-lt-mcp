@@ -5,6 +5,8 @@ entity_count 0. A server that has never seen AutoCAD still reaches ezdxf.
 """
 
 import json
+import sys
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -28,7 +30,7 @@ def world(monkeypatch):
     monkeypatch.setattr(client, "_backend", None)
     monkeypatch.setattr(client, "_autocad_seen", False)
     monkeypatch.setattr(FileIPCBackend, "initialize", initialize)
-    monkeypatch.setattr(FileIPCBackend, "_hwnd_alive", lambda self: self._hwnd == state["hwnd"], raising=False)
+    monkeypatch.setattr(FileIPCBackend, "_hwnd_alive", lambda self: self._hwnd == state["hwnd"])
     monkeypatch.setattr(FileIPCBackend, "preflight", AsyncMock(return_value=CommandResult(ok=False)))
     monkeypatch.setattr(FileIPCBackend, "load_libraries", AsyncMock(return_value=CommandResult(ok=True, payload={})))
     with patch("autocad_mcp.backends.file_ipc.find_autocad_window", side_effect=lambda: state["hwnd"]), \
@@ -96,3 +98,46 @@ class TestNeverSawAutoCAD:
         await _system("init")
         world["hwnd"] = 111
         assert (await _system("init"))["payload"]["backend"] == "file_ipc"
+
+
+class TestStatusOnADeadWindow:
+    """2026-11-04: status said file_ipc, idle, stale:false on a closed AutoCAD."""
+
+    @staticmethod
+    def _backend(tmp_path, monkeypatch, alive):
+        fake = SimpleNamespace(IsWindow=lambda hwnd: alive)
+        monkeypatch.setitem(sys.modules, "win32gui", fake)
+        backend = FileIPCBackend()
+        backend._hwnd = 111
+        backend._status_file = tmp_path / "mcp_status.txt"
+        backend._status_file.write_text("idle", encoding="utf-8")
+        backend._dispatcher_loaded = 9e9  # fresh: would read stale:false
+        return backend
+
+    @pytest.mark.asyncio
+    async def test_dead_window_is_not_idle_or_fresh(self, tmp_path, monkeypatch):
+        result = await self._backend(tmp_path, monkeypatch, alive=False).status()
+
+        assert result.ok is False
+        assert "AutoCAD not running" in result.error
+        assert result.payload["hwnd_alive"] is False
+        assert result.payload["mcp_status"] != "idle"
+        assert result.payload["dispatcher"]["stale"] is None
+
+    @pytest.mark.asyncio
+    async def test_server_status_passes_the_refusal_through(self, tmp_path, monkeypatch):
+        backend = self._backend(tmp_path, monkeypatch, alive=False)
+        monkeypatch.setattr(client, "_backend", backend)
+        out = await _system("status")
+        assert out["ok"] is False
+        assert out["payload"]["hwnd_alive"] is False
+        assert "preflight" not in out["payload"]
+
+    @pytest.mark.asyncio
+    async def test_live_window_reads_as_before(self, tmp_path, monkeypatch):
+        with patch("autocad_mcp.backends.file_ipc.multi_window_warning", return_value=None):
+            result = await self._backend(tmp_path, monkeypatch, alive=True).status()
+        assert result.ok is True
+        assert result.payload["hwnd_alive"] is True
+        assert result.payload["mcp_status"] == "idle"
+        assert result.payload["dispatcher"]["stale"] is False
