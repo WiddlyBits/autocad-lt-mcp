@@ -402,3 +402,22 @@ class TestCLI:
         bad.write_text("this is not a DXF", encoding="utf-8")
         assert probe_dxf.main([str(bad)]) == 1
         assert "cannot read" in capsys.readouterr().err
+
+
+class TestHeavyPolylineReference:
+    """The Python side of mcp:ent-bbox-data for an old-style POLYLINE."""
+
+    def test_box_comes_from_vertices_and_a_null_cannot_corrupt_the_union(self):
+        from autocad_mcp.probes import BBox, bbox_union, entity_bbox
+
+        doc = ezdxf.new()
+        msp = doc.modelspace()
+        poly = msp.add_polyline2d([(22.81, 35.85), (24.0, 37.0)])
+        hatch = msp.add_hatch()
+        hatch.paths.add_polyline_path([(30, 40), (31, 40), (31, 41)])
+
+        box = entity_bbox(probe_dxf.entity_info(poly))
+        assert box == BBox(22.81, 35.85, 24.0, 37.0)
+
+        assert entity_bbox(probe_dxf.entity_info(hatch)) is None
+        assert bbox_union([box, entity_bbox(probe_dxf.entity_info(hatch))]) == box

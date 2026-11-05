@@ -413,6 +413,33 @@ class TestLispSortDoesNotDropRows:
         )
 
 
+class TestHeavyPolylineBox:
+    """POLYLINE 55E41 reported [0,0,0,0] with vertices near (22.81, 35.85), and
+    pulled the union box minimum to (0,0). The header carries one group 10 of
+    its own, (0 0 elevation), so a "no group 10 here" test never fired."""
+
+    def _branch(self, kind: str) -> str:
+        body = _defun_body(source(PROBES_LSP), "mcp:ent-bbox-data")
+        start = body.index(f'((= kind "{kind}")')
+        return body[start:body.index("\n\n", start)]
+
+    def test_polyline_never_reads_the_header_group_10(self):
+        assert self._branch("POLYLINE").split() == ['((=', 'kind', '"POLYLINE")', '(mcp:polyline-vertex-bbox', 'data))']
+
+    def test_lwpolyline_still_collects_its_own_group_10s(self):
+        assert "(= (car item) 10)" in self._branch("LWPOLYLINE")
+
+    def test_a_box_walks_vertex_records_only(self):
+        assert '"VERTEX"' in _defun_body(source(PROBES_LSP), "mcp:polyline-vertex-bbox")
+
+    def test_null_box_cannot_enter_a_union(self):
+        """HATCH has no branch, so it measures nil; bb-union must pass over it."""
+        body = _defun_body(source(PROBES_LSP), "mcp:bb-union")
+        assert "((null a) b)" in body and "((null b) a)" in body
+        assert "HATCH" not in _defun_body(source(PROBES_LSP), "mcp:ent-bbox-data")
+        assert '"null"' in _defun_body(source(PROBES_LSP), "mcp:bb-json")
+
+
 class TestSnapshotFormatMatches:
     """Field-by-field agreement with probes.snapshot. The .snap fixture is only
     a contract if both sides emit the same lines in the same order."""

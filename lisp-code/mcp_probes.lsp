@@ -394,15 +394,16 @@
      (setq mx (car p) my (cadr p))
      (mcp:ellipse-bbox (car c) (cadr c) mx my (mcp:group data 40 1.0)))
 
-    ((or (= kind "LWPOLYLINE") (= kind "POLYLINE"))
+    ((= kind "LWPOLYLINE")
      ;; Group 10 repeats once per vertex, so assoc alone finds only the first.
      ;; Bulges are ignored, exactly as the Python does - both under-report a
      ;; bulged segment, which mcp:ent-exact-p declares.
      (setq p '())
      (foreach item data (if (= (car item) 10) (setq p (cons (cdr item) p))))
-     (if (and (= kind "POLYLINE") (null p))
-       (mcp:polyline-vertex-bbox data)
-       (mcp:bb-of-points p)))
+     (mcp:bb-of-points p))
+
+    ((= kind "POLYLINE")
+     (mcp:polyline-vertex-bbox data))
 
     ((or (= kind "TEXT") (= kind "ATTDEF"))
      (setq c (mcp:group data 10 '(0 0)))
@@ -433,8 +434,12 @@
 )
 
 (defun mcp:polyline-vertex-bbox (data / ent vdata pts)
-  "Heavy POLYLINE keeps its vertices as separate VERTEX entities rather than
-   as repeated group 10s on the header."
+  "Heavy POLYLINE keeps its vertices as separate VERTEX entities. The header's
+   own group 10 is a dummy (0 0 elevation), and reading it as a vertex reported
+   [0,0,0,0] and dragged every union box to the origin (PFAS drawing, 55E41).
+
+   shortcut: a polyface mesh's face records are VERTEX entities at 0,0,0 and are
+   counted, as in the Python reference; filter on flag 128 in both if one turns up."
   (setq pts '())
   (setq ent (entnext (cdr (assoc -1 data))))
   (while (and ent (setq vdata (entget ent)) (= (mcp:group vdata 0 "") "VERTEX"))
