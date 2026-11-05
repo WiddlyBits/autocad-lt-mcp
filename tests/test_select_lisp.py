@@ -300,6 +300,12 @@ class TestWhoami:
         body = defun_body(source(SELECT_LSP), "mcp:whoami")
         assert f'(getvar "{var}")' in body, f"whoami does not report {var}"
 
+    def test_whoami_sets_no_variable_before_reading_dbmod(self):
+        """whoami formats no reals, so pinning DIMZIN gives it nothing. A setvar
+        here once made it report dirty:true on every clean drawing."""
+        body = defun_body(source(SELECT_LSP), "mcp:whoami")
+        assert "mcp:begin-output" not in body and "setvar" not in body
+
     def test_reports_the_folder_not_just_the_name(self):
         """Two drawings with the same name in different folders is the ordinary
         case. DWGNAME alone cannot tell them apart, and this probe is what gets

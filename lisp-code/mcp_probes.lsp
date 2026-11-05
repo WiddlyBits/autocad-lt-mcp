@@ -111,17 +111,28 @@
   out
 )
 
+(defun mcp:setvar-dimzin (val / pushed)
+  "setvar DIMZIN takes DBMOD 0 to 4 even when the value does not change (measured
+   LT 2027, 2026-11-04). The push/pop brackets only this setvar, never the
+   begin/end-output pair: the verbs edit and mcp:verify-write saves inside that
+   pair, and a pop out there would mark a real edit as clean."
+  (if (setq pushed (and acad-push-dbmod acad-pop-dbmod))
+    (acad-push-dbmod))
+  (setvar "DIMZIN" val)
+  (if pushed (acad-pop-dbmod))
+)
+
 (defun mcp:begin-output ( )
   "rtos honours DIMZIN for leading/trailing zero suppression, which would make
    the output format depend on a drawing setting. Pinned once per probe rather
    than once per number - a setvar inside a 30k-entity loop is not free."
   (setq *mcp-old-dimzin* (getvar "DIMZIN"))
-  (setvar "DIMZIN" 0)
+  (mcp:setvar-dimzin 0)
   (princ)
 )
 
 (defun mcp:end-output ( )
-  (if *mcp-old-dimzin* (setvar "DIMZIN" *mcp-old-dimzin*))
+  (if *mcp-old-dimzin* (mcp:setvar-dimzin *mcp-old-dimzin*))
   (princ)
 )
 

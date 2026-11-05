@@ -36,6 +36,10 @@ and pick ezdxf, which answers `ok:true` against an empty in-memory drawing while
 open. If `probes` or `select` comes back false, say so and stop too — without them the session
 is hand-rolled AutoLISP.
 
+**`status` with no `preflight` block means AutoCAD may be gone.** Check the process before
+`init`: with AutoCAD closed, `status` still said `idle`, `stale:false` on the dead hwnd, and
+`init` landed on ezdxf and returned `ok:true`, `entity_count:0` (2026-11-04).
+
 ## Rule 1: the selection contract
 
 **Read the live selection first. `HS` is the fallback.** `(mcp:sel-dump)` reads the grips up
@@ -92,6 +96,14 @@ verb or hand-written — must begin with the guard:**
     ; ... edit goes here
   ))
 ```
+
+The guard refuses when `CTAB` differs. To edit Model from a layout: `setvar CTAB`,
+`(mcp:whoami)`, edit, verify, restore `CTAB`, then save.
+
+**Never call `drawing(create)` on the AutoCAD backend.** It makes no new drawing: it runs ERASE
+and PURGE on the *active document*, then returns `ok:true` naming that document. Run on a working
+file 2026-11-04: Layout1 went from 26 entities to 1, Model from 29,745 to 29,613, 3 layers gone.
+Two `drawing(undo)`s restored it. For a scratch drawing, open a copy of a file from disk.
 
 **To change drawings, use `system(switch_doc, data={"dwg": "<exact tab title>"})`** instead
 of asking for a click. It sends no keystrokes, works with Start in front, re-initializes the
@@ -153,7 +165,8 @@ genuinely cannot answer.
 | L5 | `view(get_screenshot)` full window | overall read, match-to-reference-photo | 1,334–1,886 tok @1280, by window shape |
 
 `entity(get)` returns real geometry and the contents of TEXT/MTEXT/ATTDEF, so **never
-screenshot to read a label**. Angles come back in degrees.
+screenshot to read a label**. Angles come back in degrees. It omits LWPOLYLINE bulges and TEXT
+alignment, so it can't prove an arc or a centered label: read raw `entget` groups 42 and 11, 72.
 
 **L3b is the rung for "what is actually in this drawing".** Parsing happens on this machine,
 so only the answer enters the conversation. Run from `~/autocad-mcp` under `uv run`:
@@ -175,8 +188,11 @@ attaches nothing. `max_dimension` (default 1280, clamped 64–2576); halving it 
 quarters the cost. Every capture reports `est_tokens`. Non-levers: `quality` (JPEG) shrinks
 bytes, not tokens, and nothing above 2576 px survives the vision API's own downscale.
 
-**Finding the crop without a full-window capture.** A string region's resolved px come back
-in `region`.
+**Finding the crop without a full-window capture, in this order.** Coordinates known: use
+`region_dwg`, always straight after `zoom_window` with the same box. Not known: use `grid=true`.
+Still too coarse: use `grid=true` plus `region`, which redraws the rules on the crop. Measured
+on one 44x9 band: `region_dwg` 460 tokens, `region="canvas"` 1,702. A string region's resolved
+px come back in `region`.
 
 - `region_dwg=[x1,y1,x2,y2]`: crop by drawing coordinates from `(mcp:sel-dump)` or
   `entity(get)`, in the current view. Overrides `region`. AutoCAD backend only; refused on
@@ -185,16 +201,22 @@ in `region`.
   labelled in native window px.
   Read the labels and pass them back as `region` for the sharp crop.
 - `region="changed"`: crops to the canvas pixels that changed since the previous capture of
-  this window. Take a `save_to` capture first as the 0-token baseline. With no baseline it
-  errors and that capture becomes one; with no change it errors, which is itself the answer.
-  For local edits: a pan or zoom changes every pixel with something drawn on it, which is
+  this window. Plan it before the edit: `save_to` capture as the 0-token baseline in the same
+  view, edit, capture. It also shows nothing else moved, which `entity(get)` can't. With no
+  baseline it errors and that capture becomes one; with no change it errors, which is itself the
+  answer. For local edits: a pan or zoom changes every pixel with something drawn on it, which is
   nearly the whole canvas on a full drawing but only the UCS icon on an empty one.
-- `region="canvas"`: only the drawing area, no ribbon, tabs, palettes or command line.
+- `region="canvas"`: only the drawing area, no ribbon, tabs, palettes or command line. Never use
+  it to check a band or row; it pays for the empty canvas.
 
 A minimized window is refused, because it captures black at full price. Restore it and retry.
 
 Reserve a full-window capture for what only pixels answer — layout, overlap, match to a
 reference photo — and batch it to a checkpoint after a group of edits, not after each one.
+
+Reference photos climb the same ladder: `crop.py --grid` (from `io-drawing-extraction`), then
+`--region`, before a full-size read. Skip a photo whose name shows it doesn't cover the area,
+and say you skipped it.
 
 `view(zoom_window)` takes **drawing coordinates, not screen pixels**; pixel-like guesses
 don't move the view and cost another screenshot to notice. Prefer `(mcp:sel-show)`, or

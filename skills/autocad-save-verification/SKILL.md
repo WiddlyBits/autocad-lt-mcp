@@ -96,6 +96,11 @@ strength:
 It is the right check **before** an open or close and after a QSAVE. It is not evidence
 for SAVEAS or DXFOUT — a document with nothing pending is already at 0 either way.
 
+After a QSAVE, read it with a bare `(getvar "DBMOD")`, before any probe. `setvar "DIMZIN"` takes
+`DBMOD` 0 to 4 with no change of value (2026-11-04). The probes now bracket that setvar with
+`acad-push-dbmod`/`acad-pop-dbmod` and `(mcp:whoami)` no longer sets it, but definitions loaded
+before that fix still dirty the drawing until the next `system(init)`.
+
 When a save matters, cross the boundary: `drawing(save)` ok and `drawing(info)` are two
 answers from the same path. Check the file with `mcp:verify-write`, or read a DXF back:
 

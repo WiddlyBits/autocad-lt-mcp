@@ -439,10 +439,28 @@ class TestSnapshotFormatMatches:
         """rtos honours DIMZIN for zero suppression, so without this the
         snapshot format depends on a drawing setting rather than on the
         drawing."""
-        assert '(setvar "DIMZIN" 0)' in source(PROBES_LSP)
+        assert "(mcp:setvar-dimzin 0)" in _defun_body(source(PROBES_LSP), "mcp:begin-output")
         for impl in PROBE_IMPL.values():
             body = _defun_body(source(PROBES_LSP), impl)
             assert "mcp:begin-output" in body, f"{impl} does not pin DIMZIN"
+
+    def test_pinning_dimzin_does_not_dirty_the_drawing(self):
+        """setvar DIMZIN takes DBMOD 0 to 4 with no change of value, so every
+        probe reported a clean drawing as dirty and left it prompting on close."""
+        probes = source(PROBES_LSP)
+        body = _defun_body(probes, "mcp:setvar-dimzin")
+        assert body.index("(acad-push-dbmod)") < body.index('(setvar "DIMZIN"')
+        assert body.index('(setvar "DIMZIN"') < body.index("(acad-pop-dbmod)")
+        for caller in ("mcp:begin-output", "mcp:end-output"):
+            assert "mcp:setvar-dimzin" in _defun_body(probes, caller)
+
+    def test_dbmod_bracket_cannot_swallow_an_edit(self):
+        """Verbs edit and mcp:verify-write saves between begin- and end-output.
+        A pop that spanned them would restore DBMOD over a real change, and a
+        drawing with unsaved edits would close without prompting."""
+        probes = source(PROBES_LSP)
+        for fn in ("mcp:begin-output", "mcp:end-output"):
+            assert "dbmod" not in _defun_body(probes, fn).lower()
 
     def test_snapshot_writes_to_a_file_rather_than_the_ipc_payload(self):
         """Returning the snapshot through execute_lisp would cost exactly what

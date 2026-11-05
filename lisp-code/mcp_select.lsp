@@ -716,7 +716,6 @@
    dbmod is reported raw and as a boolean: nonzero means unsaved changes,
    which is the precondition worth checking before an open or a close, and
    the thing a bare {\"ok\":true} from save will not tell you."
-  (mcp:begin-output)
   (setq out (strcat "{\"ok\":true,\"verb\":\"whoami\""
                     ",\"dwg\":\"" (mcp:esc (getvar "DWGNAME")) "\""
                     ",\"prefix\":\"" (mcp:esc (getvar "DWGPREFIX")) "\""
@@ -727,7 +726,6 @@
                     ",\"titled\":" (if (= 1 (getvar "DWGTITLED")) "true" "false")
                     ",\"dirty\":" (if (= 0 (getvar "DBMOD")) "false" "true")
                     "}"))
-  (mcp:end-output)
   out
 )
 
