@@ -171,7 +171,7 @@ screenshot to read a label**. Angles come back in degrees. It omits LWPOLYLINE b
 alignment, so it can't prove an arc or a centered label: read raw `entget` groups 42 and 11, 72.
 
 **L3b is the rung for "what is actually in this drawing".** Parsing happens on this machine,
-so only the answer enters the conversation. Run from `~/autocad-mcp` under `uv run`:
+so only the answer enters the conversation. Run from your clone of this repo under `uv run`:
 
 ```
 python -m autocad_mcp.probe_dxf out.dxf                 # the grid snapshot
