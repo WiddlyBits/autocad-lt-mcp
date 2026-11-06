@@ -26,13 +26,13 @@ hand-rolled AutoLISP and nothing says so. That is the most likely explanation fo
 called all day. Run `init` at the start of a session, and check the `preflight` block it
 returns.
 
-This persists in the registry
-(`HKCU:\SOFTWARE\Autodesk\AutoCAD LT\R33\ACADLT-A101:409\Profiles\<<Unnamed Profile>>\Dialogs\Appload\Startup`
+This persists in the registry (English LT 2027, default profile:
+`HKCU:\SOFTWARE\Autodesk\AutoCAD LT\R33\ACADLT-A101:409\Profiles\<<Unnamed Profile>>\Dialogs\Appload\Startup`
 as `NumStartup`/`1Startup`), so it survives restarts. Reading those registry values is
 a fast way to confirm it's still configured without opening the AutoCAD UI.
 
-Also worth knowing: there's a first-party `AutoCAD-MCP-Server-2027.bundle`
-ApplicationPlugin already present at
+Also worth knowing: an install may carry a first-party `AutoCAD-MCP-Server-2027.bundle`
+ApplicationPlugin at
 `C:\Program Files\Autodesk\ApplicationPlugins\AutoCAD-MCP-Server-2027.bundle`, but its
 `PackageContents.xml` is version-gated to `SeriesMin/Max = R26.0` (the 2026 line),
 while this LT install is R33 — so AutoCAD skips it entirely and it never loads. Don't
