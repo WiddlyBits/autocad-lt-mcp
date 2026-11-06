@@ -56,8 +56,8 @@ upstream  https://github.com/puran-water/autocad-mcp.git  <- author's repo, pull
 
 ## Skills
 
-`skills/` is the **only** source of truth for the AutoCAD skills — `autocad-mcp-workflow`,
-`autocad-save-verification`, `title-block-text`. Every other copy is a build artifact. Edit
+`skills/` is the **only** source of truth for the public AutoCAD skills — `autocad-mcp-workflow`
+and `autocad-save-verification`. Every other copy is a build artifact. Edit
 here, never in a loaded copy: editing a loaded copy is how a skill once documented a
 `preflight` block and an `mcp_select.lsp` that existed only on an unmerged branch.
 
@@ -76,13 +76,17 @@ powershell -File scripts\sync-skills.ps1 -Package  # dist\<skill>.zip for the cl
 Run `-Check` at the start of any AutoCAD session that edits skills. The synced folder is a
 **local preview**: the next claude.ai sync round overwrites it, so it is not delivery. Delivery
 is Gianni uploading the `-Package` zips in claude.ai → Customize → Skills after a merge to
-`main`; `-Check` afterwards must exit 0 with all three in the manifest. Content is the
+`main`; `-Check` afterwards must exit 0 with both in the manifest. Content is the
 evidence: an `updatedAt` older than that skill's own last commit (`skills/<name>`, not
 `skills/`) prints `warn`, not `DRIFT` — an upload built from the same content just before the
 commit is delivered. `-SyncedRoot <dir>` points `-Check` at a scratch copy for testing.
 
 `tests/test_skill_drift.py` fails CI when a skill names an `mcp:`/`c:` LISP function or a
 `tool(operation=…)` that does not exist in `src/` or `lisp-code/`.
+
+`title-block-text` is internal and lives outside this repo, in `~\projects\ecsi\skills\`; never
+add it back here. An older copy stays in public git history, including the `v3.2.0` tag.
+`-SkillsRoot <that folder>` runs `-Check` and `-Package` on it. `test_skill_drift` does not cover it.
 
 Error payloads and what to do about them: `skills/autocad-mcp-workflow/references/troubleshooting.md`.
 Developer detail: `docs/error-model.md`. Open defects: `docs/known-issues.md`.

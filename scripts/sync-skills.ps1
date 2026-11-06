@@ -37,6 +37,10 @@
   One folder holding manifest.json and skills\<name>, used instead of the glob:
   for a machine whose path differs, or a scratch copy to test -Check.
 
+.PARAMETER SkillsRoot
+  Folder of skills to work on. Defaults to the repo's skills\. For a skill kept out
+  of the public tree: -Check or -Package -SkillsRoot <that folder>.
+
 .PARAMETER SyncedRoot
   Parent of the <guid>_<guid> folders. Defaults to ~\.claude\skills\synced.
 
@@ -52,13 +56,14 @@ param(
     [switch]$Check,
     [switch]$Package,
     [string]$PluginRoot,
+    [string]$SkillsRoot,
     [string]$SyncedRoot = (Join-Path $HOME '.claude\skills\synced')
 )
 
 $ErrorActionPreference = 'Stop'
 
 $repo = Join-Path $PSScriptRoot '..' | Resolve-Path -ErrorAction Stop
-$source = Join-Path $repo 'skills' | Resolve-Path -ErrorAction Stop
+$source = $(if ($SkillsRoot) { $SkillsRoot } else { Join-Path $repo 'skills' }) | Resolve-Path -ErrorAction Stop
 $skills = @(Get-ChildItem -Path $source -Directory)
 if ($skills.Count -eq 0) { Write-Error "No skills in $source" }
 
@@ -169,6 +174,7 @@ Pass -PluginRoot if this machine keeps it elsewhere.
     $lastCommit = @{}
     foreach ($skill in $skills) {
         $c = (& git -C $repo log -1 --format=%cI -- "skills/$($skill.Name)") | Out-String
+        if (-not $c.Trim()) { continue }  # -SkillsRoot outside the repo: no history to compare with
         $lastCommit[$skill.Name] = [DateTimeOffset]::Parse($c.Trim())
         Write-Host "Last commit touching skills\$($skill.Name): $($lastCommit[$skill.Name].ToString('u'))"
     }
@@ -206,7 +212,7 @@ Pass -PluginRoot if this machine keeps it elsewhere.
             $entry = @($manifest.skills | Where-Object { $_.name -eq $skill.Name })
             if ($entry.Count -eq 0) {
                 $problems += 'not in manifest'
-            } elseif ([DateTimeOffset]::Parse($entry[0].updatedAt) -lt $lastCommit[$skill.Name]) {
+            } elseif ($lastCommit[$skill.Name] -and [DateTimeOffset]::Parse($entry[0].updatedAt) -lt $lastCommit[$skill.Name]) {
                 $warnings += "manifest updatedAt $($entry[0].updatedAt) predates the last commit to skills\$($skill.Name)"
             }
             if ($problems -and $target.Terminal) {
