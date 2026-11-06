@@ -216,8 +216,7 @@ A minimized window is refused, because it captures black at full price. Restore 
 Reserve a full-window capture for what only pixels answer — layout, overlap, match to a
 reference photo — and batch it to a checkpoint after a group of edits, not after each one.
 
-Reference photos climb the same ladder: `crop.py --grid` (from `io-drawing-extraction`), then
-`--region`, before a full-size read. Skip a photo whose name shows it doesn't cover the area,
+Reference photos climb the same ladder: crop to the area you need before a full-size read. Skip a photo whose name shows it doesn't cover the area,
 and say you skipped it.
 
 `view(zoom_window)` takes **drawing coordinates, not screen pixels**; pixel-like guesses
