@@ -648,14 +648,18 @@ async def system(
       status        — Backend info, capabilities, health check, plus a
                       `preflight` block on the File IPC backend: which .lsp
                       libraries are live (dispatch/probes/select), the active
-                      `dwg` and `ctab`, `tilemode` and `pickfirst`. Run this
-                      first — it answers in one call what otherwise takes six.
+                      `dwg` and `ctab`, `tilemode` and `pickfirst`. Loads
+                      nothing, so on a fresh document `select` reads false and
+                      (mcp:whoami) is undefined until init has run. Run init
+                      first in a session, then status for a recheck: it answers
+                      in one call what otherwise takes six.
                       A dead AutoCAD window: ok:false with hwnd_alive:false.
       health       — Quick health check (ping backend).
       get_backend   — Return current backend name and capabilities.
       runtime       — Return process/runtime details for spawn diagnostics.
-      init          — Re-initialize the backend, re-acquire the window handle
-                      after an AutoCAD restart, AND (re)load mcp_probes.lsp
+      init          — Run this first in a session and on the first visit to each
+                      document. Re-initialize the backend, re-acquire the window
+                      handle after an AutoCAD restart, AND (re)load mcp_probes.lsp
                       and mcp_select.lsp into the current document by absolute
                       path. The APPLOAD Startup Suite therefore only needs
                       mcp_dispatch.lsp. Re-loading every time is deliberate:
