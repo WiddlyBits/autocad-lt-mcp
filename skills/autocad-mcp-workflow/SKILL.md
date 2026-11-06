@@ -50,7 +50,7 @@ sends ESC only when recovering from stale IPC files. Measured on LT 2027: 6 hand
 sessions read back exactly, through up to 5 dispatches and a typed `REGEN`.
 
 The limits: ESC recovery clears grips (3 of 3 in that test), and so does any command that
-consumes the selection. If `source` is `"none"` or the count is wrong, don't ask him to
+consumes the selection. If `source` is `"none"` or the count is wrong, don't ask the user to
 re-select and hope.
 
 1. **`(mcp:sel-dump)` — once.** One payload gives count, source, document, space, the
@@ -157,7 +157,7 @@ genuinely cannot answer.
 | L0 | `system(status)` preflight | which backend, document, space, libraries | ~80 tok |
 | L0 | `(mcp:whoami)` | which file, folder, tab, unsaved changes — **the** identity probe | ~80 tok |
 | L0 | `drawing(info)`, `entity(count)` | did the edit apply | ~50 tok |
-| L0 | `system(command_line, data={"n": 10})` | what AutoCAD is asking now plus recent history; works while a command waits, when the dispatcher refuses reads. Before asking Gianni to paste the command line | ~100–300 tok |
+| L0 | `system(command_line, data={"n": 10})` | what AutoCAD is asking now plus recent history; works while a command waits, when the dispatcher refuses reads. Before asking the user to paste the command line | ~100–300 tok |
 | L1 | `(mcp:sel-dump)`, `entity(get)` | what is selected; where is it; what does it say | ~100–400 tok |
 | L2 | `(mcp:bbox-by-layer-in "Model")` | what occupies which region | ~200–600 tok |
 | L3 | `(mcp:grid-map-in 24 16 "Model")` | does the layout read correctly, coarse | ~300–800 tok |

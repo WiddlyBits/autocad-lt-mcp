@@ -14,7 +14,7 @@ listed applications into every drawing on open:
 
 1. Run `APPLOAD` in AutoCAD.
 2. Click **Startup Suite → Contents...**
-3. Click **Add...** and select `C:\Users\Gianni\autocad-mcp\lisp-code\mcp_dispatch.lsp`.
+3. Click **Add...** and select `<repo>\lisp-code\mcp_dispatch.lsp`.
 
 **Only `mcp_dispatch.lsp` needs to be in the Startup Suite.** `mcp_probes.lsp` and
 `mcp_select.lsp` are loaded by `system(operation="init")`, which sends `(load ...)` with
@@ -77,6 +77,5 @@ code you were trying to replace is worse than no validation run.
 
 ## Registering the MCP server
 
-`claude mcp add` in PowerShell: call `claude.exe` by full path, not bare `claude` — see the
-global CLAUDE.md. Use `-s user` scope and `-e AUTOCAD_MCP_BACKEND=auto`, with
-`C:\Users\Gianni\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp` after `--`.
+`claude mcp add` in PowerShell: call `claude.exe` by full path, not bare `claude`. Use `-s user` scope and `-e AUTOCAD_MCP_BACKEND=auto`, with
+`<repo>\.venv\Scripts\python.exe -m autocad_mcp` after `--`.

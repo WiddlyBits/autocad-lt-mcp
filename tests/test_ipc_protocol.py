@@ -629,9 +629,9 @@ class TestAssertDoc:
         backend = FileIPCBackend()
         with patch.object(backend, "execute_lisp", new_callable=AsyncMock) as mock_lisp:
             mock_lisp.return_value = CommandResult(ok=True, payload="OK")
-            result = await backend.assert_doc("ECSI Border Template - Blank.dwg")
+            result = await backend.assert_doc("Border Template - Blank.dwg")
         assert result.ok is True
-        assert result.payload["doc"] == "ECSI Border Template - Blank.dwg"
+        assert result.payload["doc"] == "Border Template - Blank.dwg"
 
     @pytest.mark.asyncio
     async def test_wrong_doc_response(self):
@@ -640,10 +640,10 @@ class TestAssertDoc:
         backend = FileIPCBackend()
         with patch.object(backend, "execute_lisp", new_callable=AsyncMock) as mock_lisp:
             mock_lisp.return_value = CommandResult(ok=True, payload='("WRONG-DOC" "Drawing1.dwg")')
-            result = await backend.assert_doc("ECSI Border Template - Blank.dwg")
+            result = await backend.assert_doc("Border Template - Blank.dwg")
         assert result.ok is False
         assert result.error == "wrong_doc"
-        assert result.payload["expected"] == "ECSI Border Template - Blank.dwg"
+        assert result.payload["expected"] == "Border Template - Blank.dwg"
         assert "Drawing1.dwg" in result.payload["actual"]
 
     @pytest.mark.asyncio

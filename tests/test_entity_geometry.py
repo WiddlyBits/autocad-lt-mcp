@@ -139,7 +139,7 @@ class TestDrawingExtents:
         assert info["extents"] == {"min": [0.0, 0.0], "max": [44.0, 56.0]}
 
     async def test_overlap_is_decidable_from_extents_alone(self, backend):
-        """Andy's review note 4 as arithmetic instead of a look.
+        """A drawing review note as arithmetic instead of a look.
 
         'The border must never overlap the diagram' is a bounding-box
         intersection test. Two rectangles, four comparisons, zero pixels.

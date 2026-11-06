@@ -224,7 +224,7 @@
 
 (defun mcp:bb-gap (a b / dx dy)
   "Shortest distance between two boxes; 0.0 when they touch or overlap.
-   Andy's review note wants clearance, not just absence of collision."
+   A drawing review note wants clearance, not just absence of collision."
   (setq dx (max 0.0 (max (- (nth 0 a) (nth 2 b)) (- (nth 0 b) (nth 2 a)))))
   (setq dy (max 0.0 (max (- (nth 1 a) (nth 3 b)) (- (nth 1 b) (nth 3 a)))))
   (sqrt (+ (* dx dx) (* dy dy)))
@@ -436,7 +436,7 @@
 (defun mcp:polyline-vertex-bbox (data / ent vdata pts)
   "Heavy POLYLINE keeps its vertices as separate VERTEX entities. The header's
    own group 10 is a dummy (0 0 elevation), and reading it as a vertex reported
-   [0,0,0,0] and dragged every union box to the origin (PFAS drawing, 55E41).
+   [0,0,0,0] and dragged every union box to the origin (real panel drawing, handle 55E41).
 
    shortcut: a polyface mesh's face records are VERTEX entities at 0,0,0 and are
    counted, as in the Python reference; filter on flag 128 in both if one turns up."
@@ -683,7 +683,7 @@
 
    One space at a time, and it says which. A layer is a document-wide NAME,
    not a place: on Draft 3, `border line 02` has entities only in Layout1 and
-   `ECSI_Backpan` only in model space, so a single call can never show both -
+   `Backpan` only in model space, so a single call can never show both -
    and one that silently showed model space made the border look like it did
    not exist."
   (mcp:begin-output)
@@ -856,7 +856,7 @@
 
 (defun mcp:overlap-in (layer-a layer-b clearance space
                        / a b hit sep out sa sb shared nm)
-  "Andy's review note 4 as a boolean: two rectangles, four comparisons.
+  "A drawing review note as a boolean: two rectangles, four comparisons.
    clearance promotes it from \"do they collide\" to \"do they clear each other
    by at least this much\", which is the actual drafting requirement.
    Touching is not overlapping - see mcp:bb-hit-open.

@@ -92,7 +92,7 @@ class TestIntersection:
     def test_touching_is_not_overlapping(self):
         """A border flush against the diagram is flush, not a collision.
 
-        Andy's note 4 with the closed rule would fire on every drawing where
+        The review note with the closed rule would fire on every drawing where
         something is drawn exactly to the edge, which is most of them.
         """
         assert intersects_open(BBox(0, 0, 1, 1), BBox(1, 0, 2, 1)) is False
@@ -426,7 +426,7 @@ class TestTextDump:
 
 
 class TestOverlap:
-    def test_andys_note_four_as_a_boolean(self):
+    def test_review_note_as_a_boolean(self):
         """"The border must not overlap the diagram" — four comparisons."""
         border = BBox(0, 0, 36, 24)
         diagram = BBox(30, 20, 50, 40)

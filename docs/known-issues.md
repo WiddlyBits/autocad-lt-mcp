@@ -12,7 +12,7 @@ no handle, type or layer; `erase` returns `"erased <h>"`. Callers must confirm w
 `data.handle` is ignored.
 
 **`mcp:ent-bbox-data` has no branch for some entity types** (DIMENSION, HATCH, and the type on
-the ECSI `border line 02` layer, 2026-08-15), so `bbox-by-layer` reports `bbox none` for them.
+a client template's `border line 02` layer, 2026-08-15), so `bbox-by-layer` reports `bbox none` for them.
 Crossing-mode grid maps still draw them, because `ssget` sees geometry the bbox code cannot measure.
 
 **`mcp:in-model-space` has no call sites.** It wraps an `entmakex` in `CTAB "Model"` and restores

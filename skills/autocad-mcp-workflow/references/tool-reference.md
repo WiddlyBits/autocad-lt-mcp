@@ -39,7 +39,7 @@ expensive. Two cheaper techniques:
 
 Loaded by `system(operation="init")`. Rationale in Rule 1 of the main skill; this is the surface.
 
-- `c:HS` — what **Gianni** types (with objects selected: `HS` + Enter). It stashes handles,
+- `c:HS` — what **the user** types (with objects selected: `HS` + Enter). It stashes handles,
   which survive the next command.
 - `(mcp:sel)` — the selection as a handle list: the grips up right now, then the stash (from
   `HS` or the last live read), dropping dead handles. Nothing else, so `sel-dump` reports

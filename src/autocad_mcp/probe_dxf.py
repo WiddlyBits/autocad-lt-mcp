@@ -86,7 +86,7 @@ def layer_spaces(doc, layer: str) -> list[str]:
     """Which spaces a layer actually has entities in.
 
     A layer is a document-wide name, not a place. `border line 02` and
-    `ECSI_Backpan` both exist in Draft 3's layer table and never appear in the
+    `Backpan` both exist in Draft 3's layer table and never appear in the
     same space, which is why comparing their bounding boxes produces a number
     that means nothing. mcp:overlap asks this before it answers.
     """

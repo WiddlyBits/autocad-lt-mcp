@@ -170,7 +170,7 @@ def intersection(a: BBox, b: BBox) -> BBox | None:
 def gap(a: BBox, b: BBox) -> float:
     """Shortest distance between two boxes; 0.0 when they touch or overlap.
 
-    Andy's note 4 wants clearance, not just absence of collision. This turns
+    A drawing review note wants clearance, not just absence of collision. This turns
     "does the border clear the diagram by at least 2 units" into arithmetic.
     """
     dx = max(0.0, max(a.xmin - b.xmax, b.xmin - a.xmax))
@@ -587,7 +587,7 @@ def overlap(
     comparable: bool = True,
     reason: str | None = None,
 ) -> dict:
-    """mcp:overlap — Andy's review note 4 as a boolean.
+    """mcp:overlap — a drawing review note as a boolean.
 
     "The border must not overlap the diagram" is two rectangles and four
     comparisons. `clearance` promotes it from "do they collide" to "do they
