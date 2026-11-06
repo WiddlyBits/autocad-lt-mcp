@@ -132,7 +132,7 @@ If PowerShell mis-parses the arguments after `--`, call `claude.exe` by its full
 }
 ```
 
-To add the working rules, run `powershell -File scripts\sync-skills.ps1 -Package` and upload the zips from `dist\` in claude.ai under Customize, then Skills.
+To add the working rules, run `powershell -ExecutionPolicy Bypass -File scripts\sync-skills.ps1 -Package` from the repo root and upload the 2 zips from `dist\` in claude.ai under Customize, then Skills. Without `-ExecutionPolicy Bypass`, a machine on Windows' default script policy refuses the script.
 
 If Claude Code runs in WSL, launch the server through `cmd.exe` so it runs as a native Windows process:
 
