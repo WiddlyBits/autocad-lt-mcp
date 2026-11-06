@@ -1,8 +1,8 @@
 # Why this skill exists
 
 Read this when you are tempted to relax a rule. `SKILL.md` carries the rules; this file
-carries the reasons. The session-cost numbers live in the global CLAUDE.md; re-measure any
-transcript offline with
+carries the reasons. Re-measure any Claude Code
+transcript offline, from your clone of this repo, with
 
 ```bash
 uv run python -m tests.token_audit ~/.claude/projects/<folder-slug>/<session>.jsonl
