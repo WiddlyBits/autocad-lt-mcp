@@ -77,5 +77,6 @@ code you were trying to replace is worse than no validation run.
 
 ## Registering the MCP server
 
-`claude mcp add` in PowerShell: call `claude.exe` by full path, not bare `claude`. Use `-s user` scope and `-e AUTOCAD_MCP_BACKEND=auto`, with
+`claude mcp add` in PowerShell with an npm install: call `claude.cmd`, not bare `claude`, because the
+`claude.ps1` shim loses the `--`. Use `-s user` scope and `-e AUTOCAD_MCP_BACKEND=auto`, with
 `<repo>\.venv\Scripts\python.exe -m autocad_mcp` after `--`.

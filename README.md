@@ -115,10 +115,10 @@ Replace `C:\path\to\autocad-mcp` with your clone's path. `python.exe` must be th
 **Claude** is what this server was developed and tested with. For Claude Code:
 
 ```powershell
-claude mcp add autocad-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp
+claude.cmd mcp add autocad-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp
 ```
 
-If PowerShell mis-parses the arguments after `--`, call `claude.exe` by its full path. For Claude Desktop, add this to `claude_desktop_config.json`:
+Use `claude.cmd` if npm installed Claude Code: PowerShell drops the `--` on its way through npm's `claude.ps1`, and plain `claude` fails with `unknown option '-m'`. Check with `claude mcp list`, which should show `autocad-mcp` as connected. A native install hasn't been tested. For Claude Desktop, add this to `claude_desktop_config.json`:
 
 ```json
 {
