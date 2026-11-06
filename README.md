@@ -84,6 +84,7 @@ The server exposes **7 consolidated tools** (`drawing`, `entity`, `layer`, `bloc
 - Only LT 2027 has been tested. LT 2024 to 2026 should work by the feature list but haven't been run.
 - **Python 3.10+** (Windows native — not WSL Python)
 - **uv** package manager ([install guide](https://docs.astral.sh/uv/getting-started/installation/))
+- **Git**, and an MCP client such as Claude Code (step 3)
 
 > The ezdxf headless backend works on any platform (Linux, macOS, WSL) for offline DXF generation without AutoCAD installed.
 
@@ -106,7 +107,9 @@ Open AutoCAD LT and load `mcp_dispatch.lsp` using **APPLOAD**:
 3. Click **Load**
 4. You should see: `=== MCP Dispatch v3.1 loaded ===` and `Ready for commands via (c:mcp-dispatch)`
 
-> **Tip:** Add the file to your AutoCAD Startup Suite (in the APPLOAD dialog) so it loads automatically with every drawing.
+Then add it to the **Startup Suite** in the same dialog (Startup Suite, Contents, Add). **Load** only covers the current drawing, so without this every other drawing fails step 4 with `mcp_dispatch.lsp not loaded`.
+
+> A default install has `SECURELOAD` 1, so AutoCAD may ask before loading a file from outside its trusted paths. Choose **Always Load**, or add `<repo>\lisp-code` under Options, Files, Trusted Locations. The test machine runs with `SECURELOAD` 0, so this prompt hasn't been observed with this repo.
 
 ### 3. Connect your assistant
 
@@ -118,7 +121,7 @@ Replace `C:\path\to\autocad-mcp` with your clone's path. `python.exe` must be th
 claude.cmd mcp add autocad-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp
 ```
 
-Use `claude.cmd` if npm installed Claude Code: PowerShell drops the `--` on its way through npm's `claude.ps1`, and plain `claude` fails with `unknown option '-m'`. Check with `claude mcp list`, which should show `autocad-mcp` as connected. A native install hasn't been tested. For Claude Desktop, add this to `claude_desktop_config.json`:
+Use `claude.cmd` if npm installed Claude Code: PowerShell drops the `--` on its way through npm's `claude.ps1`, and plain `claude` fails with `unknown option '-m'`. Check with `claude mcp list`, which should show `autocad-mcp` as connected. A native install hasn't been tested. For Claude Desktop, open Settings, Developer, Edit Config, add this to `claude_desktop_config.json`, and restart the app:
 
 ```json
 {
@@ -186,13 +189,13 @@ The Gemini web app and ChatGPT aren't covered by any of this.
 
 ### 4. Verify
 
-With AutoCAD LT open and a drawing in front, ask your assistant to call:
+AutoCAD opens on the Start tab, which refuses with `start_tab_active`, so open or start a drawing first. Then ask your assistant to call:
 
 ```
 system(operation="init")
 ```
 
-You should see `backend: "file_ipc"` and `select: true` in the `preflight` block. `backend: "ezdxf"` with AutoCAD open means it isn't connected to your drawing, so stop and check step 2. `system(operation="status")` repeats the check later without reloading anything.
+You should see `backend: "file_ipc"` and `select: true` in the `preflight` block. `backend: "ezdxf"` with AutoCAD open means it isn't connected to your drawing, so stop and check step 2. `system(operation="status")` repeats the check later without reloading anything. `mcp_dispatch.lsp not loaded` can also mean a dialog or a running command is blocking AutoCAD, so close it and retry before reloading.
 
 ## Tools
 
