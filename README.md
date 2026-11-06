@@ -108,9 +108,17 @@ Open AutoCAD LT and load `mcp_dispatch.lsp` using **APPLOAD**:
 
 > **Tip:** Add the file to your AutoCAD Startup Suite (in the APPLOAD dialog) so it loads automatically with every drawing.
 
-### 3. Configure your MCP client
+### 3. Connect your assistant
 
-Add to your MCP client configuration (e.g. Claude Desktop `claude_desktop_config.json`):
+Replace `C:\path\to\autocad-mcp` with your clone's path. `python.exe` must be the **Windows Python** inside the project venv, not WSL Python. `AUTOCAD_MCP_BACKEND` can be `auto` (default: tries File IPC, falls back to ezdxf), `file_ipc` (requires AutoCAD) or `ezdxf` (headless only).
+
+**Claude** is what this server was developed and tested with. For Claude Code:
+
+```powershell
+claude mcp add autocad-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp
+```
+
+If PowerShell mis-parses the arguments after `--`, call `claude.exe` by its full path. For Claude Desktop, add this to `claude_desktop_config.json`:
 
 ```json
 {
@@ -124,14 +132,9 @@ Add to your MCP client configuration (e.g. Claude Desktop `claude_desktop_config
 }
 ```
 
-**Key points:**
+To add the working rules, run `powershell -File scripts\sync-skills.ps1 -Package` and upload the zips from `dist\` in claude.ai under Customize, then Skills.
 
-- The `command` must point to the **Windows Python** inside the project venv (not WSL python).
-- `AUTOCAD_MCP_BACKEND` can be `auto` (default — tries File IPC, falls back to ezdxf), `file_ipc` (requires AutoCAD), or `ezdxf` (headless only).
-
-#### Running from WSL
-
-If your MCP client runs in WSL (e.g. Claude Code), launch the server through `cmd.exe` so it runs as a native Windows process:
+If Claude Code runs in WSL, launch the server through `cmd.exe` so it runs as a native Windows process:
 
 ```json
 {
@@ -146,15 +149,50 @@ If your MCP client runs in WSL (e.g. Claude Code), launch the server through `cm
 }
 ```
 
+**Gemini CLI: not yet tested against this server.** The steps below follow [its MCP docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md), read 2026-11-05. Add this to `%USERPROFILE%\.gemini\settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "autocad-mcp": {
+      "command": "C:\\path\\to\\autocad-mcp\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "autocad_mcp"],
+      "env": { "AUTOCAD_MCP_BACKEND": "auto" }
+    }
+  }
+}
+```
+
+**OpenAI Codex CLI: not yet tested against this server.** The steps below follow [its MCP docs](https://developers.openai.com/codex/mcp), read 2026-11-05. Either run:
+
+```powershell
+codex mcp add autocad-mcp --env AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp
+```
+
+or add this to `%USERPROFILE%\.codex\config.toml`:
+
+```toml
+[mcp_servers.autocad-mcp]
+command = 'C:\path\to\autocad-mcp\.venv\Scripts\python.exe'
+args = ["-m", "autocad_mcp"]
+
+[mcp_servers.autocad-mcp.env]
+AUTOCAD_MCP_BACKEND = "auto"
+```
+
+**Skills outside Claude are untested too.** Gemini CLI and Codex both document Agent Skills, folders holding a `SKILL.md`: Gemini reads `%USERPROFILE%\.gemini\skills\` or `%USERPROFILE%\.agents\skills\`, and Codex reads `%USERPROFILE%\.agents\skills\`. The skills here were written for Claude and name its tools as `mcp__autocad-mcp__*`, so expect to adjust them. If your client shows only tool descriptions, those state the same first step: run `init`.
+
+The Gemini web app and ChatGPT aren't covered by any of this.
+
 ### 4. Verify
 
-From your MCP client, call:
+With AutoCAD LT open and a drawing in front, ask your assistant to call:
 
 ```
-system(operation="status")
+system(operation="init")
 ```
 
-You should see `backend: "file_ipc"` if AutoCAD is running, or `backend: "ezdxf"` for headless mode.
+You should see `backend: "file_ipc"` and `select: true` in the `preflight` block. `backend: "ezdxf"` with AutoCAD open means it isn't connected to your drawing, so stop and check step 2. `system(operation="status")` repeats the check later without reloading anything.
 
 ## Tools
 
