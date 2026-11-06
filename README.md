@@ -1,103 +1,70 @@
-# AutoCAD MCP Server: production-hardened fork
+# AutoCAD MCP Server for AutoCAD LT
 
 [![CI](https://github.com/WiddlyBits/autocad-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/WiddlyBits/autocad-mcp/actions/workflows/ci.yml)
 
-**Let an AI assistant like Claude work in AutoCAD LT for you, and trust what it tells you.**
+Connects an AI assistant to AutoCAD LT, so it can read, edit and check real drawings while you keep working. It's built and tested on AutoCAD LT 2027, and full AutoCAD is untested. It was developed with Claude and started as a fork of [puran-water/autocad-mcp](https://github.com/puran-water/autocad-mcp).
 
-This is an improved version of [puran-water/autocad-mcp](https://github.com/puran-water/autocad-mcp).
-Both connect an AI assistant to AutoCAD LT so it can draw, edit and inspect drawings for you. This
-version has been used every day on real engineering drawings, and every problem found along the way
-has been fixed and covered by a test.
+Upstream has accepted part of this work. On 2026-11-03, `hvkshetry` merged [#18](https://github.com/puran-water/autocad-mcp/pull/18) (a runnable test suite, ruff and CI) and [#19](https://github.com/puran-water/autocad-mcp/pull/19) (linear dimension orientation) into `puran-water/autocad-mcp` (633 stars, 122 forks, checked 2026-11-05).
 
 > **New to this?** AutoCAD LT is drafting software used for technical drawings. MCP is the standard
 > way to plug a tool into an AI assistant. This repo is that plug.
 
-## Why start here instead of the original?
+## Why it matters
 
-1. **It doesn't claim work it didn't do.** The original can report "saved" when nothing was saved.
-   That happened on a real drawing. Here every save and DXF export is checked on disk
-   before the assistant is told "done".
-2. **It costs less to run.** AI assistants are billed by how much they read, and they can only hold
-   so much at once (about 200,000 "tokens" of working memory). The original sends every result twice
-   and every screenshot at full size. In one real session, 41 screenshots nearly filled that memory:
+An assistant is only useful in CAD if it can see what you see at a cost you can afford. These three features close that gap. Upstream has none of them as of `5a7ced7`, by reading its code, not running it.
 
-   | The same 41 screenshots | Tokens | Share of working memory |
-   |---|---|---|
-   | Original: full size, 1440p monitor | ~196,000 | 98% |
-   | This fork's default (1280 px cap) | ~49,000 | 25% |
-   | Close-ups of just the area that matters | up to ~11,000 | 6% |
-   | Saved to disk, looked at only when needed | 0 | 0% |
-3. **It answers with measurements, not pictures.** To find out whether two things overlap or what a
-   label says, the original can only take a screenshot and look. Here the assistant asks the drawing
-   directly and gets exact numbers and text back.
-4. **When something goes wrong, it says what happened and whether it's safe to try again.** If
-   AutoCAD is busy, in the middle of another command, or showing a different drawing, this version
-   stops and says so. It won't act on the wrong drawing or do the same step twice.
-5. **It's tested.** It has 800+ automated tests that run on every change. The original has 123, and
-   they can't be run out of the box.
+**Select objects, and the assistant sees them.** You select by hand and ask. There's no `HS` to type and nothing to re-select. All 6 test selections read back exactly, covering 7 entity types in Model and on a layout, across 2 AutoCAD sessions. On a real drawing it read a 29,717-object selection in 454 ms, and the count matched the Properties palette. Stale-file recovery clears the grips, so `HS` stays as the fallback.
 
-### New in this fork
+**The assistant reads the command line itself.** Nobody has to paste prompts or history, even while a command is waiting for input. With LINE waiting on a real drawing, the read cost about 200 tokens, estimated from its size. That's one command on a real drawing, and option keywords can come back as a count, without their names.
 
-| Feature | What it does for you |
-|---|---|
-| **Drawing probes** | Ask "does this overlap?", "what does this label say?" or "is this area empty?" and get an exact answer, with no screenshot |
-| **Selection handoff** | Select objects in AutoCAD yourself, and the assistant works on exactly those |
-| **Switch drawings** | Moves between open drawings with no click, and confirms which one is active |
-| **Read the command line** | The assistant sees AutoCAD's prompts and errors while a command is running |
-| **Screenshot controls** | Crop to one area, save to disk instead of reading the image, and see each capture's cost |
-| **Assistant skills** | Ready-made working rules that teach the assistant to drive AutoCAD safely ([`skills/`](skills/)) |
-| **Automatic testing** | Every change is tested on GitHub before it lands |
+**Grid screenshots.** A labelled low-res preview tells the assistant where to crop, and the crop stays sharp. On one view of one drawing (window 3618x3218):
 
-### Improved over the original
-
-| Area | Original | This fork |
+| | Full window | Grid preview + 4 crops |
 |---|---|---|
-| Saving and DXF export | Reports success without checking. A failed save said "saved", and DXF export wrote no file at all | Checks the file on disk and reports failure if it isn't there |
-| Running cost | Every result sent twice; screenshots at full size | Sent once; screenshots capped at 1280 px (56% fewer tokens on a typical window) |
-| Timeouts | "Timed out" | Says whether the action never started (safe to retry) or may still finish (don't repeat it) |
-| Busy AutoCAD or wrong drawing | Can type into a running command or act on the wrong drawing | Refuses and says why |
-| Erasing | Erasing something already erased brought it back | Reports "not found" |
-| Opening a drawing | Reports success while opening nothing | Says it can't, and names the drawing that is still active |
-| Object details | Type, handle and layer only | Full geometry and extents, the same from both backends |
-| Safety labels | Marks the tool that runs any code as read-only | Each tool labelled correctly, so the assistant knows which actions need your OK |
+| Tokens | 1,886 | 520 |
+| Target labels read correctly | 2 of 5 | 5 of 5 |
 
-Known limits are listed openly in [docs/known-issues.md](docs/known-issues.md). Error codes and
-when a retry is safe: [docs/error-model.md](docs/error-model.md).
+The 5 labels were picked because the full window left them uncertain, so this is a worst case for the full window and says nothing about average accuracy. Those crops were small, about 40 tokens each. At a 270-token crop, the grid route costs more than a full window from the sixth crop on. A full window also answers layout questions that a crop can't.
 
-## What this made possible
+## How it compares with upstream
 
-Real problems from daily drafting work that the original could not handle, and what happens now.
+Upstream became active again in November 2026, so this comparison is dated. It was made by reading upstream's code at `5a7ced7` and hasn't been run against it. Upstream now has journaled native revision batches and Windows dialog recovery (`system(revision)`, `system(desktop)`), and this fork has neither. If you need those, use upstream.
 
-| Before (original) | Now (this fork) |
+| Area | Upstream at `5a7ced7` | This fork |
+|---|---|---|
+| Plain saves and DXF export | `drawing(save)` reports success without checking (its `revision` save does check). A failed save once said "saved" on a real drawing | Checks the file on disk and reports failure if it isn't there |
+| Screenshots | Always full size. In one real session, 41 of them came to about 196,000 tokens at 1440p | Capped at 1280 px (about 49,000 tokens for the same 41), with crops, and saving to disk costs 0 until read |
+| Reading a drawing | Entity `get` adds geometry for LINE and CIRCLE only. `revision read` returns native entity data | Full geometry and extents from both backends, plus probes: ask "does this overlap?" or "what does this label say?" and get an exact answer with no screenshot |
+| Timeouts | Keeps a pending receipt and refuses more work until it's reconciled | Says whether the action never started (safe to retry) or may still finish (don't repeat it) |
+| Busy AutoCAD or wrong drawing | `revision` batches check both. Plain tools don't | Refuses inside an active command, and `assert_doc` and the skill's guard refuse the wrong drawing |
+| Switching drawings | Not available | `system(switch_doc)` switches with no click and confirms through `DWGNAME` |
+| Erasing | Erasing something already erased brings it back | Reports "not found" |
+| Opening a drawing | Reports success without checking | Says it can't, and names the drawing that is still active |
+| Safety labels | Marks `system`, which can run any code, as read-only | Each tool labelled correctly, so the assistant knows which actions need your OK |
+| Tests | 226 (CI at `53275a3`) | 879 |
+
+This fork also ships working rules that teach an assistant to drive AutoCAD safely ([`skills/`](skills/)).
+Known limits are listed in [docs/known-issues.md](docs/known-issues.md). Error codes and when a retry
+is safe: [docs/error-model.md](docs/error-model.md).
+
+## Problems found in daily use
+
+These came up in real drafting work.
+
+| Problem | What happens now |
 |---|---|
-| **PDF plotting silently did nothing.** The plot command was fed its answers in the wrong order, so the file path landed on the wrong question and no PDF appeared. There was no reliable way to batch-export drawings. | `drawing(plot_pdf)` sends AutoCAD LT 2027's real 18-step plot sequence, captured from a manual run. The included save-verification skill has the assistant confirm the PDF landed. Combined with drawing switching, the assistant can plot one open drawing after another. Currently set up for ARCH D landscape sheets. |
-| **The assistant couldn't move between open drawings.** You had to click the other tab yourself, every time. | `system(switch_doc)` switches with no click and confirms the switch by asking AutoCAD which drawing is active. |
-| **The assistant couldn't see the command line.** When a command stopped at a prompt or failed, you had to copy and paste the command history into the chat by hand. | `system(command_line)` reads the command line and its history directly, even while a command is waiting for input. |
-| **The assistant couldn't work on "the lines I selected".** Your selection in AutoCAD did not carry over, and describing one selection took four separate round trips. | Selection handoff: you select, and one call reports what's selected and edits exactly those objects. In the sessions that prompted it, 129 of 193 tool calls had been spent on this kind of back-and-forth. |
+| **PDF plotting did nothing.** The plot command was fed its answers in the wrong order, so the file path landed on the wrong question and no PDF appeared. | `drawing(plot_pdf)` sends AutoCAD LT 2027's real 18-step plot sequence, captured from a manual run, and the save-verification skill has the assistant confirm the PDF landed. With drawing switching, the assistant can plot one open drawing after another. Currently set up for ARCH D landscape sheets. Upstream's `drawing(plot_pdf)` is unchanged; its newer `revision` plot hasn't been tested here. |
+| **Selections took four round trips to describe.** In the sessions that prompted selection handoff, 129 of 193 tool calls went on this kind of back-and-forth. | One call reports what's selected and edits exactly those objects. |
 | **"Saved" didn't mean saved.** A failed save reported success, and the drawing that was still open was the original. | Every save and DXF export is checked on disk. If the file isn't there, you're told. |
-
-Each fix is backed by tests, and the working rules the assistant follows are in [`skills/`](skills/),
-so a beginner doesn't need to know any of this to benefit from it.
+| **The server hung when AutoCAD was closed.** One `system(status)` call ran 1,046 s with no answer, a deadlock while loading numpy on the fallback path. | The same call answers in under a second, measured through a chat's MCP connection. |
 
 ## Contributing back upstream
 
-The improvements are going back to the original as a stack of small pull requests. Each one has its
-own tests and a green CI run:
+`hvkshetry` merged [#18](https://github.com/puran-water/autocad-mcp/pull/18) and [#19](https://github.com/puran-water/autocad-mcp/pull/19) on 2026-11-03. Another contributor's [#15](https://github.com/puran-water/autocad-mcp/pull/15), merged the same day, fixed the duplicated tool results that this fork had also fixed.
 
-| PR | Change | Tests after |
-|---|---|---|
-| [#2](https://github.com/WiddlyBits/autocad-mcp/pull/2) | Build + CI: runnable tests, ruff, GitHub Actions | 123 |
-| [#3](https://github.com/WiddlyBits/autocad-mcp/pull/3) | Stop sending every tool result twice | 131 |
-| [#4](https://github.com/WiddlyBits/autocad-mcp/pull/4) | Screenshot cost controls | 169 |
-| [#5](https://github.com/WiddlyBits/autocad-mcp/pull/5) | `readOnlyHint` / `destructiveHint` on every tool | 178 |
-| [#6](https://github.com/WiddlyBits/autocad-mcp/pull/6) | Entity geometry and extents, same shape on both backends | 227 |
-| [#7](https://github.com/WiddlyBits/autocad-mcp/pull/7) | Drawing probes: Python reference, AutoLISP port, golden fixtures | 599 |
-| [#8](https://github.com/WiddlyBits/autocad-mcp/pull/8) | IPC timeouts, verified saves, stale-state recovery | 640 |
-| [#9](https://github.com/WiddlyBits/autocad-mcp/pull/9) | Command claim, active-command refusal, `assert_doc` | 693 |
-| [#10](https://github.com/WiddlyBits/autocad-mcp/pull/10) | Error model and retry policy docs | 693 |
+The rest of the work is ready as a stack of small pull requests against this fork, each with its own tests and CI run, and hasn't been offered upstream: [#3](https://github.com/WiddlyBits/autocad-mcp/pull/3) to [#10](https://github.com/WiddlyBits/autocad-mcp/pull/10) cover results sent once, screenshot cost controls, tool annotations, entity geometry, probes, IPC timeouts and verified saves, command claims and `assert_doc`, and the error model docs.
 
-Still fork-only for now: selection handoff, measured writes, `system(command_line)`, `switch_doc`,
-`drawing(plot_pdf)` and the assistant skills.
+Still fork-only: selection handoff, `system(command_line)`, `switch_doc`, grid and `region_dwg` screenshots, probes, verified saves, the LT 2027 `drawing(plot_pdf)` sequence and the assistant skills.
 
 ## Technical overview
 
@@ -114,6 +81,7 @@ The server exposes **8 consolidated tools** (`drawing`, `entity`, `layer`, `bloc
 
 - **Windows 10/11** (the File IPC backend uses Win32 APIs for focus-free window messaging)
 - **AutoCAD LT 2024 or newer** — AutoLISP support was added in LT 2024 for Windows. AutoCAD LT for Mac exists but does **not** support AutoLISP.
+- Only LT 2027 has been tested. LT 2024 to 2026 should work by the feature list but haven't been run.
 - **Python 3.10+** (Windows native — not WSL Python)
 - **uv** package manager ([install guide](https://docs.astral.sh/uv/getting-started/installation/))
 
@@ -194,7 +162,7 @@ You should see `backend: "file_ipc"` if AutoCAD is running, or `backend: "ezdxf"
 
 | Operation | Description | File IPC | ezdxf |
 |-----------|-------------|----------|-------|
-| `create` | Reset to clean drawing (erase all + purge) | Yes | Yes |
+| `create` | Reset to clean drawing (erase all + purge). On AutoCAD it refuses and changes nothing | No | Yes |
 | `open` | Open an existing drawing | No — see below | Yes (DXF) |
 | `info` | Get entity count and layers | Yes | Yes |
 | `save` | Save current drawing (to path if given) | Yes | Yes |
@@ -250,11 +218,13 @@ You should see `backend: "file_ipc"` if AutoCAD is running, or `backend: "ezdxf"
 
 Screenshots use `PrintWindow` (Win32) for the File IPC backend — works even when AutoCAD is minimized or in the background. The ezdxf backend renders via matplotlib.
 
-`get_screenshot` accepts four cost parameters, since screenshots dominate token usage in long automation sessions:
+`get_screenshot` accepts these cost parameters, since screenshots dominate token usage in long automation sessions:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `region` | `null` | `[left, top, right, bottom]` pixel rect of the captured window, cropped **before** downscaling so the crop keeps full source resolution. Clamped to the image; a region that is empty or entirely outside it is an error rather than a silent full-frame capture. |
+| `region` | `null` | `[left, top, right, bottom]` pixel rect of the captured window, cropped **before** downscaling so the crop keeps full source resolution. Clamped to the image; a region that is empty or entirely outside it is an error rather than a silent full-frame capture. Also takes `"canvas"` (drop the ribbon and palettes) or `"changed"` (only what changed since the last capture). |
+| `grid` | `false` | Low-res preview with rules labelled in native window pixels, so a label can go straight back as `region`. Ignores `max_dimension`. |
+| `region_dwg` | `null` | `[x1, y1, x2, y2]` in drawing coordinates, for example a `sel-dump` bbox. Refused where the mapping can't hold, such as tiled viewports. |
 | `save_to` | `null` | Write the PNG to this path and return only its path and cost, with **no image attached**. |
 | `max_dimension` | `1280` | Cap on the longest side in pixels (clamped to 64–2576, as an argument and not only as an env default). Pass `null` for full resolution; non-positive values are treated as full resolution. Never upscales. |
 | `quality` | `null` | If set (clamped to 1–95), encodes JPEG instead of PNG. Shrinks the transferred payload; does **not** reduce token cost. |
