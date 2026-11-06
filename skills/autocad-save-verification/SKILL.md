@@ -17,7 +17,7 @@ here comes from a measured case where the two came apart.
 ## Hard stop: `(mcp:whoami)` before any SAVEAS, DXFOUT, open, close, or destructive command
 
 It returns file, folder (`prefix`), tab, and dirty state in one call. `DWGNAME` alone cannot
-tell two drawings with the same name in different folders apart — the ordinary case here.
+tell two drawings with the same name in different folders apart — a common case.
 Commands go to whichever window holds focus (workflow skill, Rule 2), so confirm *which*
 document before anything that cannot be undone.
 
@@ -105,7 +105,7 @@ When a save matters, cross the boundary: `drawing(save)` ok and `drawing(info)` 
 answers from the same path. Check the file with `mcp:verify-write`, or read a DXF back:
 
 ```bash
-uv run python -m autocad_mcp.probe_dxf out.dxf --text   # from ~/autocad-mcp
+uv run python -m autocad_mcp.probe_dxf out.dxf --text   # from your clone of this repo
 ```
 
 A DXF that parses is the strongest proof the export is real and complete.
