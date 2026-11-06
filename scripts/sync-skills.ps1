@@ -6,9 +6,14 @@
   The repo's skills\ folder is the only source of truth. Every other copy is a
   build artifact:
 
+    %LOCALAPPDATA%\Claude-Data\*\local-agent-mode-sessions\skills-plugin\<org>\<account>\
+        manifest.json, plus skills\<name>. What desktop chats load. The desktop app
+        writes it after an upload. -Check compares against it; nothing here writes it.
     ~\.claude\skills\synced\<guid>_<guid>\   (dirs holding a manifest.json)
-        Written by the claude.ai skill sync. Copying into it here is a LOCAL
-        PREVIEW: the next sync round overwrites it with whatever claude.ai holds.
+        The terminal copy: what terminal and SDK sessions load. Claude Code writes
+        it, and it stays old until one of those sessions syncs it, so -Check only
+        warns about it. Copying into it here is a LOCAL PREVIEW for terminal sessions:
+        the next sync round overwrites it with whatever claude.ai holds.
     claude.ai -> Customize -> Skills
         Delivery. Gianni uploads the -Package zips there after a merge to main.
 
@@ -25,11 +30,15 @@
   values, body after the frontmatter byte for byte. Every other file, including
   references\: byte for byte. Each skill must be in the manifest; an updatedAt
   older than that skill's own last commit is a warning, not drift. Exit 1 on
-  any drift. Copies nothing.
+  any drift in the skills-plugin copy, or if no such copy is found. The terminal
+  copy is reported as a warning and never fails the check. Copies nothing.
+
+.PARAMETER PluginRoot
+  One folder holding manifest.json and skills\<name>, used instead of the glob:
+  for a machine whose path differs, or a scratch copy to test -Check.
 
 .PARAMETER SyncedRoot
   Parent of the <guid>_<guid> folders. Defaults to ~\.claude\skills\synced.
-  Point it at a scratch copy to test -Check without touching the live folder.
 
 .PARAMETER Package
   Write dist\<skill>.zip for each skill, rooted at the skill folder, for the
@@ -42,6 +51,7 @@
 param(
     [switch]$Check,
     [switch]$Package,
+    [string]$PluginRoot,
     [string]$SyncedRoot = (Join-Path $HOME '.claude\skills\synced')
 )
 
@@ -133,15 +143,26 @@ $syncedPattern = Join-Path $SyncedRoot '*'
 $targets = @(Get-ChildItem -Path $syncedPattern -Directory -ErrorAction SilentlyContinue |
     Where-Object { Test-Path (Join-Path $_.FullName 'manifest.json') })
 
-if ($targets.Count -eq 0) {
-    Write-Error @"
-No loaded skills directory found under
-  $syncedPattern (with a manifest.json)
-The GUID path may have been re-provisioned, or Claude has not created it yet.
-"@
-}
-
 if ($Check) {
+    $pluginPattern = if ($PluginRoot) { $PluginRoot } else {
+        Join-Path $env:LOCALAPPDATA 'Claude-Data\*\local-agent-mode-sessions\skills-plugin\*\*'
+    }
+    $plugin = @(Get-Item -Path $pluginPattern -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path (Join-Path $_.FullName 'manifest.json') })
+    # Nothing compared is not "no drift".
+    if ($plugin.Count -eq 0) {
+        Write-Error @"
+No copy that desktop chats load found under
+  $pluginPattern (with a manifest.json)
+Pass -PluginRoot if this machine keeps it elsewhere.
+"@
+    }
+    $checks = @($plugin | ForEach-Object {
+        [pscustomobject]@{ Dir = $_.FullName; Skills = Join-Path $_.FullName 'skills'; Terminal = $false }
+    }) + @($targets | ForEach-Object {
+        [pscustomobject]@{ Dir = $_.FullName; Skills = $_.FullName; Terminal = $true }
+    })
+    $terminal = 0
     $drift = 0
     $warned = 0
     # Per skill: the newest commit to any skill must not age the other two.
@@ -151,13 +172,14 @@ if ($Check) {
         $lastCommit[$skill.Name] = [DateTimeOffset]::Parse($c.Trim())
         Write-Host "Last commit touching skills\$($skill.Name): $($lastCommit[$skill.Name].ToString('u'))"
     }
-    foreach ($target in $targets) {
-        Write-Host "-> $($target.FullName)"
-        $manifest = Get-Content (Join-Path $target.FullName 'manifest.json') -Raw -Encoding UTF8 |
+    foreach ($target in $checks) {
+        $note = if ($target.Terminal) { '  (terminal copy: warning only, stays old until a terminal session syncs)' }
+        Write-Host "-> $($target.Dir)$note"
+        $manifest = Get-Content (Join-Path $target.Dir 'manifest.json') -Raw -Encoding UTF8 |
             ConvertFrom-Json
         foreach ($skill in $skills) {
             $problems = @()
-            $dest = Join-Path $target.FullName $skill.Name
+            $dest = Join-Path $target.Skills $skill.Name
             if (-not (Test-Path $dest)) {
                 $problems += 'not loaded'
             } else {
@@ -187,7 +209,11 @@ if ($Check) {
             } elseif ([DateTimeOffset]::Parse($entry[0].updatedAt) -lt $lastCommit[$skill.Name]) {
                 $warnings += "manifest updatedAt $($entry[0].updatedAt) predates the last commit to skills\$($skill.Name)"
             }
-            if ($problems) {
+            if ($problems -and $target.Terminal) {
+                $terminal++
+                Write-Host "   warn   $($skill.Name)"
+                ($problems + $warnings) | ForEach-Object { Write-Host "            $_" }
+            } elseif ($problems) {
                 $drift++
                 Write-Host "   DRIFT  $($skill.Name)"
                 ($problems + $warnings) | ForEach-Object { Write-Host "            $_" }
@@ -201,6 +227,7 @@ if ($Check) {
         }
     }
     Write-Host ""
+    if ($terminal) { Write-Host "$terminal skill(s) out of date in the terminal copy. Terminal and SDK sessions load the old text until they sync." }
     if ($drift) {
         Write-Host "$drift skill/location pair(s) drifted."
         exit 1
@@ -210,8 +237,17 @@ if ($Check) {
     exit 0
 }
 
+if ($targets.Count -eq 0) {
+    Write-Error @"
+No loaded skills directory found under
+  $syncedPattern (with a manifest.json)
+The GUID path may have been re-provisioned, or Claude has not created it yet.
+"@
+}
+
+# Never the skills-plugin copy: writing the folder chats load is the drift -Check exists to catch.
 foreach ($target in $targets) {
-    Write-Host "-> $($target.FullName)  (local preview; the next sync round overwrites it)"
+    Write-Host "-> $($target.FullName)  (local preview for terminal sessions; the next sync round overwrites it)"
     foreach ($skill in $skills) {
         $dest = Join-Path $target.FullName $skill.Name
         if ($PSCmdlet.ShouldProcess($dest, "sync $($skill.Name)")) {
