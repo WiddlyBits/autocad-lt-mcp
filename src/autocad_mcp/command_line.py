@@ -68,16 +68,18 @@ def parse_output(raw: str, n: int) -> dict:
     """Shape the PowerShell JSON into `{lines, prompt, live}`.
 
     `lines` is the last `n` non-blank scrollback lines. `live` is the raw
-    TextBlock strings of the live prompt row, in order; `prompt` is those
-    joined, which is what the user would read ("LINE Specify next point or [ ]: ").
+    TextBlock strings of the live prompt row, in order; `prompt` is what the user
+    would read ("LINE Specify next point or []:").
     """
     data = json.loads(raw)
     history = [ln.rstrip() for ln in (data.get("history") or "").splitlines() if ln.strip()]
     live = data.get("live") or []
     if isinstance(live, str):  # ConvertTo-Json collapses a one-element array
         live = [live]
-    prompt = "".join(live).strip()
-    out = {"lines": history[-n:], "prompt": prompt, "live": live, "history_total": len(history)}
+    # Only the command name needs a space after it; the rest are fragments of one
+    # sentence that carry their own spacing ("or ", "[", "]", ": ").
+    prompt = f"{live[0].rstrip()} {''.join(live[1:])}".strip() if live else ""
+    out ={"lines": history[-n:], "prompt": prompt, "live": live, "history_total": len(history)}
     # The option text sits in an unnamed WPF Button that UIA cannot read
     # (2026-10-14: no Name, HelpText, or children), so the live row shows "[]".
     # AutoCAD echoes the full prompt into the scrollback once anything is

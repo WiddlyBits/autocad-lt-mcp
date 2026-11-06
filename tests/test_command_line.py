@@ -26,8 +26,13 @@ class TestParse:
         })
         out = cl.parse_output(raw, 2)
         assert out["lines"] == ["Command: LINE", "Specify first point:"]
-        assert out["prompt"] == "LINESpecify next point or []:"
+        assert out["prompt"] == "LINE Specify next point or []:"
         assert out["history_total"] == 4
+
+    def test_command_name_is_separated_from_the_prompt(self):
+        """Rows as measured live on LT 2027, smoke test 2026-11-05."""
+        raw = json.dumps({"history": "", "live": ["LINE", "Specify first point: ", ""]})
+        assert cl.parse_output(raw, 5)["prompt"] == "LINE Specify first point:"
 
     def test_single_live_block_arrives_as_a_string(self):
         """ConvertTo-Json collapses a one-element array to a bare string."""
@@ -143,7 +148,8 @@ class TestHiddenOptions:
 
     def test_options_recovered_from_scrollback(self):
         out = self._parse("Specify first point:\nSpecify next point or [Undo]: (c:mcp-dispatch)")
-        assert "[Undo]" in out["prompt"] and "options_hidden" not in out
+        assert out["prompt"] == "LINE Specify next point or [Undo]:"
+        assert "options_hidden" not in out
 
     def test_hidden_options_report_the_button_count(self):
         raw = json.dumps({"history": "Command: TEXT", "live": self.LIVE, "option_buttons": 2})
