@@ -108,7 +108,7 @@ class EzdxfBackend(AutoCADBackend):
             return CommandResult(ok=False, error="No document open")
         save_path = path or self._save_path
         if not save_path:
-            return CommandResult(ok=False, error="No save path specified")
+            return CommandResult(ok=False, error="No save path specified: pass data: {path: ...}")
         self._doc.saveas(save_path)
         self._save_path = save_path
         return CommandResult(ok=True, payload={"path": save_path})
