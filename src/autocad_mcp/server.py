@@ -177,6 +177,9 @@ async def entity(
       erase   — entity_id
     """
     data = data or {}
+    # Clients that hide the schema put these inside data; ignoring them drew on layer 0 and dropped the polyline.
+    layer = layer or data.get("layer")
+    points = points or data.get("points")
     if entity_id is None and operation in _NEEDS_ENTITY_ID:
         return _json({"ok": False, "error": f"[entity.{operation}] entity_id is required, as a top-level argument, not inside data"})
     if operation == "create_polyline" and len(points or []) < 2:
