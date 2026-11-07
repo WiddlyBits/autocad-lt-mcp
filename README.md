@@ -152,7 +152,7 @@ If Claude Code runs in WSL, launch the server through `cmd.exe` so it runs as a 
 }
 ```
 
-Gemini and Codex were tested on 2026-11-07 against the ezdxf backend only, with no AutoCAD running. They have not yet driven a live AutoCAD.
+Gemini and Codex were tested on 2026-11-07 against the ezdxf backend, with no AutoCAD running. Codex also drove a live AutoCAD LT 2027 on `auto`: it confirmed the drawing, then created, read back and erased a line, 9 of 9 calls on File IPC. Antigravity hasn't driven a live AutoCAD yet.
 
 **Gemini: use Antigravity CLI.** Tested with Antigravity CLI 1.5.3, signed in with a personal Google account. Install it from [its getting-started page](https://antigravity.google/docs/getting-started?tab=cli), run `agy` once to sign in, and add this to `%USERPROFILE%\.gemini\config\mcp_config.json`:
 
