@@ -2,8 +2,9 @@
 name: autocad-mcp-workflow
 description: >-
   Align text, batch LISP, DXF probe, selection handoff, screenshot planning, or
-  troubleshoot autocad-mcp (tools named mcp__autocad-mcp__ system, drawing,
-  entity, layer, view, block, annotation). Load before any mcp__autocad-mcp__ call
+  troubleshoot autocad-mcp (MCP tools system, drawing, entity, layer, view,
+  block, annotation; Claude names them mcp__autocad-mcp__system and so on). Load before
+  any autocad-mcp tool call
   and whenever the user refers to a selection ("the lines I have selected", "move these
   circles", "duplicate these labels") — read the live selection with (mcp:sel-dump) first;
   Rule 1 covers the HS fallback.

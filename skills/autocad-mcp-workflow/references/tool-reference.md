@@ -1,7 +1,10 @@
 # autocad-mcp tool surface — what the schemas don't say
 
-Tools are named `mcp__autocad-mcp__<name>`; each tool's docstring lists its operations and
-parameters. This file holds only what those don't:
+Each client prefixes the tool names its own way: `mcp__autocad-mcp__<name>` in Claude Code, and
+through `call_mcp_tool` with `ServerName: "autocad-mcp"` in Antigravity CLI. Each tool's description
+lists its operations and parameters. Read it before the first call in a client that hides the schema:
+only `operation`, `x1`, `y1`, `x2`, `y2`, `points`, `layer` and `entity_id` sit outside `data`.
+This file holds only what those don't:
 
 - **system** — `init` (re)loads `mcp_probes.lsp` + `mcp_select.lsp` into the *current*
   document; `status` returns `backend` and the `preflight` block (Rule 0). `execute_lisp`
