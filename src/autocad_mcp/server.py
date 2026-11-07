@@ -45,6 +45,8 @@ log = structlog.get_logger()
 
 mcp = FastMCP("autocad-mcp")
 
+_NEEDS_ENTITY_ID = {"create_hatch", "get", "copy", "move", "rotate", "scale", "mirror", "offset", "array", "erase"}
+
 
 # ==========================================================================
 # 1. drawing — File/drawing management
@@ -175,6 +177,10 @@ async def entity(
       erase   — entity_id
     """
     data = data or {}
+    if entity_id is None and operation in _NEEDS_ENTITY_ID:
+        return _json({"ok": False, "error": f"[entity.{operation}] entity_id is required, as a top-level argument, not inside data"})
+    if operation == "create_polyline" and len(points or []) < 2:
+        return _json({"ok": False, "error": "[entity.create_polyline] points needs at least 2 [x, y] pairs, as a top-level argument, not inside data"})
     backend = await get_backend()
 
     # --- Create ---

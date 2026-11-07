@@ -88,7 +88,15 @@ def _error(e: Exception, context: str = "") -> str:
     msg = str(e)
     msg_lower = msg.lower()
 
-    if "start_tab_active" in msg_lower:
+    if isinstance(e, KeyError):
+        # A bare KeyError reads as "'cx'". Seen from Antigravity CLI, whose model calls
+        # tools without their schema and puts data keys at the top level.
+        msg = f"missing argument {e.args[0]!r}"
+        hint = (
+            "Put it inside data, as this operation's line in the tool description lists. "
+            "Only operation, x1, y1, x2, y2, points, layer and entity_id go outside data."
+        )
+    elif "start_tab_active" in msg_lower:
         hint = "Switch to a drawing with system(operation='switch_doc', data={'dwg': '<filename>'})."
     elif "window not found" in msg_lower or "no autocad" in msg_lower:
         hint = "AutoCAD LT is not running or no drawing is open. Start AutoCAD and open a .dwg file."
