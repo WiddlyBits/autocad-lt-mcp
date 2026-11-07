@@ -152,7 +152,9 @@ If Claude Code runs in WSL, launch the server through `cmd.exe` so it runs as a 
 }
 ```
 
-**Gemini CLI: not yet tested against this server.** The steps below follow [its MCP docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md), read 2026-11-05. Add this to `%USERPROFILE%\.gemini\settings.json`:
+Gemini and Codex were tested on 2026-11-07 against the ezdxf backend only, with no AutoCAD running. They have not yet driven a live AutoCAD.
+
+**Gemini: use Antigravity CLI.** Tested with Antigravity CLI 1.5.3, signed in with a personal Google account. Install it from [its getting-started page](https://antigravity.google/docs/getting-started?tab=cli), run `agy` once to sign in, and add this to `%USERPROFILE%\.gemini\config\mcp_config.json`:
 
 ```json
 {
@@ -166,13 +168,11 @@ If Claude Code runs in WSL, launch the server through `cmd.exe` so it runs as a 
 }
 ```
 
-**OpenAI Codex CLI: not yet tested against this server.** The steps below follow [its MCP docs](https://developers.openai.com/codex/mcp), read 2026-11-05. Either run:
+`agy mcp list` should show `autocad-mcp` as `enabled`. Antigravity calls these tools through its own `call_mcp_tool` without showing the model their schemas first, so the model guesses where arguments go and retries from the error, which names the right place. A 9-step test drawing took 18 calls, 9 of them retries, and the saved file matched what was asked.
 
-```powershell
-codex mcp add autocad-mcp --env AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp
-```
+**Gemini CLI no longer works with a personal Google account.** Google [stopped serving it](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/) on June 18, 2026 for free, AI Pro and Ultra accounts. Gemini CLI 0.67.0 signs in, then refuses with `This client is no longer supported for Gemini Code Assist for individuals`. It still runs with a paid Gemini API key or a Code Assist Standard or Enterprise license. With the block above under `mcpServers` in `%USERPROFILE%\.gemini\settings.json`, `gemini mcp list` showed `autocad-mcp` as Connected, but only after the folder Gemini runs in was trusted; before that it reported Disabled. No tool calls through Gemini CLI have been tested.
 
-or add this to `%USERPROFILE%\.codex\config.toml`:
+**OpenAI Codex CLI.** Tested with Codex CLI 0.167.0, signed in with ChatGPT: 10 of 10 calls succeeded on the first try, a screenshot included. Add this to `%USERPROFILE%\.codex\config.toml`. The [documented](https://developers.openai.com/codex/mcp) `codex mcp add autocad-mcp --env AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp` should write the same entry, but wasn't the form tested.
 
 ```toml
 [mcp_servers.autocad-mcp]
@@ -183,7 +183,14 @@ args = ["-m", "autocad_mcp"]
 AUTOCAD_MCP_BACKEND = "auto"
 ```
 
-**Skills outside Claude are untested too.** Gemini CLI and Codex both document Agent Skills, folders holding a `SKILL.md`: Gemini reads `%USERPROFILE%\.gemini\skills\` or `%USERPROFILE%\.agents\skills\`, and Codex reads `%USERPROFILE%\.agents\skills\`. The skills here were written for Claude and name its tools as `mcp__autocad-mcp__*`, so expect to adjust them. If your client shows only tool descriptions, those state the same first step: run `init`.
+Codex asks before each call to this server, because its tools are marked as able to change the drawing. `codex exec` can't ask, so it refuses them with `MCP tool call requires approval, but approval policy is never`. To let this server's tools through there, add `default_tools_approval_mode = "approve"` under `[mcp_servers.autocad-mcp]`. It was tested as `-c 'mcp_servers.autocad-mcp.default_tools_approval_mode="approve"'`. Codex names the tools `mcp__autocad_mcp__system` and so on.
+
+**Skills outside Claude.** Copy `skills\autocad-mcp-workflow` and `skills\autocad-save-verification` into the client's skills folder:
+
+- **Antigravity:** `%USERPROFILE%\.gemini\config\skills\`. It found both, loaded both for a select, move and save request, and named `system(init)` as its first call.
+- **Codex:** `%USERPROFILE%\.agents\skills\`. It lists both, but it reads a `SKILL.md` with a shell command that needs your approval, and `codex exec` refused that read. Without the skill text, it skipped `init`. With the read approved, it loaded both and named `init` first.
+
+If your client shows only tool descriptions, those state the same first step: run `init`.
 
 The Gemini web app and ChatGPT aren't covered by any of this.
 
