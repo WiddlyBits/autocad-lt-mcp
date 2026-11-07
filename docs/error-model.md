@@ -93,7 +93,7 @@ and has no automatic rollback.
 |---|---|
 | **Origin** | Python-dispatch |
 | **Trigger** | Timed out waiting for a result file on a call in `_MUTATING_COMMANDS`. |
-| **Payload** | `may_have_applied: true`, `request_id: <str>` |
+| **Payload** | `may_have_applied: true`, `request_id: <str>`, `pending_prompt` (see below) |
 | **Notes** | Pair with an out-of-band read (`entity(get)`, `entity(count)`, `drawing(info)`) before re-issuing. |
 
 ### `timeout_not_dispatched`
@@ -102,7 +102,7 @@ and has no automatic rollback.
 |---|---|
 | **Origin** | Python-dispatch |
 | **Trigger** | Timed out, and the command file was still unclaimed, so Python could delete it. Requires dispatcher v2 (`*mcp-dispatcher-version*` 2), which renames `cmd_<id>` to `run_<id>` before running anything. |
-| **Payload** | `may_have_applied: false`, `request_id: <str>` |
+| **Payload** | `may_have_applied: false`, `request_id: <str>`, `pending_prompt` (see below) |
 | **Notes** | Reaches the caller only after the server's one automatic re-send also went unclaimed. Usual cause: the trigger keystroke went to a window not at the command prompt (tab switch, dialog). Takes precedence over `timeout_mutating`. With a v1 dispatcher, behaviour is unchanged. |
 
 ### *(plain string timeout)*
@@ -111,7 +111,9 @@ and has no automatic rollback.
 |---|---|
 | **Origin** | Python-dispatch |
 | **Trigger** | Timed out on a non-mutating call. |
-| **Payload** | `error` is the free-form string `"Timeout waiting for result (request_id=…)"`. |
+| **Payload** | `error` is the free-form string `"Timeout waiting for result (request_id=…)"`; payload `pending_prompt`. |
+
+All three timeouts carry `pending_prompt`: the live command-line prompt read through UI Automation (`command_line.read_command_line`) after the wait, or `pending_prompt_error` when that read fails (always off Windows). Attached in `FileIPCBackend._with_pending_prompt`.
 | **Notes** | Distinguished from `timeout_mutating` only by command classification. Callers matching on `error` must handle both forms. |
 
 ### `save_unverified`

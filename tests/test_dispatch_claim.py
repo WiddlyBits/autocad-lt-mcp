@@ -298,3 +298,67 @@ class TestSaveVerification:
             result = await backend.drawing_plot_pdf(str(out))
         assert result.error == "save_unverified"
         assert result.payload["detail"] == "file not found"
+
+
+class TestPendingPrompt:
+    """Every IPC timeout carries the prompt AutoCAD is waiting on (R1 idea 1),
+    read through the UIA command-line reader, which works while the dispatcher
+    is blocked. Mocked here: the UIA read itself needs a live AutoCAD."""
+
+    PROMPT = "LINE Specify next point or [Undo]:"
+
+    def _reader(self, ok=True):
+        from autocad_mcp.backends.base import CommandResult
+
+        r = (CommandResult(ok=True, payload={"prompt": self.PROMPT}) if ok
+             else CommandResult(ok=False, error="command_line needs Windows UI Automation"))
+        return patch("autocad_mcp.command_line.read_command_line", AsyncMock(return_value=r))
+
+    @pytest.mark.asyncio
+    async def test_timeout_mutating_keeps_its_fields_and_adds_the_prompt(self, tmp_path):
+        backend = _backend(tmp_path, version=1)
+        with self._reader() as m:
+            result, _ = await _run(backend, "execute-lisp")
+        assert result.error == "timeout_mutating"
+        assert result.payload["may_have_applied"] is True
+        assert result.payload["pending_prompt"] == self.PROMPT
+        m.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_plain_timeout_gets_a_payload(self, tmp_path):
+        backend = _backend(tmp_path, version=1)
+        with self._reader():
+            result, _ = await _run(backend, "drawing-get-variables")
+        assert result.error.startswith("Timeout waiting for result")
+        assert result.payload == {"pending_prompt": self.PROMPT}
+
+    @pytest.mark.asyncio
+    async def test_not_dispatched_reads_once_after_the_retry(self, tmp_path):
+        backend = _backend(tmp_path, version=2)
+        with self._reader() as m:
+            result, triggers = await _run(backend, "execute-lisp")
+        assert result.error == "timeout_not_dispatched"
+        assert result.payload["pending_prompt"] == self.PROMPT
+        assert triggers == 2
+        m.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_failed_read_is_reported_not_raised(self, tmp_path):
+        backend = _backend(tmp_path, version=1)
+        with self._reader(ok=False):
+            result, _ = await _run(backend, "execute-lisp")
+        assert result.error == "timeout_mutating"
+        assert "pending_prompt" not in result.payload
+        assert "Windows UI Automation" in result.payload["pending_prompt_error"]
+
+    @pytest.mark.asyncio
+    async def test_non_timeout_errors_skip_the_read(self, tmp_path):
+        from autocad_mcp.backends.base import CommandResult
+
+        backend = _backend(tmp_path, version=2)
+        busy = CommandResult(ok=False, error="autocad_busy")
+        with self._reader() as m, \
+                patch.object(backend, "_dispatch_once", AsyncMock(return_value=busy)):
+            result = await backend._dispatch_unlocked("execute-lisp", {})
+        assert result is busy
+        m.assert_not_awaited()
