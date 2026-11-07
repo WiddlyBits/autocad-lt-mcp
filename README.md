@@ -1,49 +1,65 @@
-# AutoCAD MCP Server for AutoCAD LT
+# autocad-lt-mcp
 
-[![CI](https://github.com/WiddlyBits/autocad-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/WiddlyBits/autocad-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/WiddlyBits/autocad-lt-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/WiddlyBits/autocad-lt-mcp/actions/workflows/ci.yml)
 
-Connects an AI assistant to AutoCAD LT, so it can read, edit and check real drawings while you keep working. It's built and tested on AutoCAD LT 2027, and full AutoCAD is untested. It was developed with Claude and started as a fork of [puran-water/autocad-mcp](https://github.com/puran-water/autocad-mcp).
+An MCP server for AutoCAD LT. It connects an AI assistant to AutoCAD LT, so it can read, edit and check real drawings while you keep working. It's built and tested on AutoCAD LT 2027, and full AutoCAD is untested. It was developed with Claude and started as a fork of [puran-water/autocad-mcp](https://github.com/puran-water/autocad-mcp).
 
-Upstream has accepted part of this work. On 2026-11-03, `hvkshetry` merged [#18](https://github.com/puran-water/autocad-mcp/pull/18) (a runnable test suite, ruff and CI) and [#19](https://github.com/puran-water/autocad-mcp/pull/19) (linear dimension orientation) into `puran-water/autocad-mcp` (633 stars, 122 forks, checked 2026-11-05).
+Not affiliated with, endorsed by or sponsored by Autodesk, Inc. AutoCAD and AutoCAD LT are registered trademarks of Autodesk, Inc.
 
 > **New to this?** AutoCAD LT is drafting software used for technical drawings. MCP is the standard
 > way to plug a tool into an AI assistant. This repo is that plug.
 
-## Why it matters
+## Measured against upstream
 
-An assistant is only useful in CAD if it can see what you see at a cost you can afford. These three features close that gap. Upstream has none of them as of `5a7ced7`, by reading its code, not running it.
+Measured 2026-11-07 on live AutoCAD LT 2027: same drawing, same window, same model (Opus 5.5), one headless `claude -p` session per run, counted with [`tests/token_audit.py`](tests/token_audit.py). Upstream is `puran-water/autocad-mcp` at `5a7ced7`; this repo was at `9e99e8f`.
 
-**Select objects, and the assistant sees them.** You select by hand and ask. There's no `HS` to type and nothing to re-select. All 6 test selections read back exactly, covering 7 entity types in Model and on a layout, across 2 AutoCAD sessions. On a real drawing it read a 29,717-object selection in 454 ms, and the count matched the Properties palette. Stale-file recovery clears the grips, so `HS` stays as the fallback.
+**Screenshots: read 6 title-block values off a whole-sheet layout view**
 
-**The assistant reads the command line itself.** Nobody has to paste prompts or history, even while a command is waiting for input. With LINE waiting on a real drawing, the read cost about 200 tokens, estimated from its size. That's one command on a real drawing, and option keywords can come back as a count, without their names.
+| Route | Runs | Image | Image tokens | Values read |
+|---|---|---|---|---|
+| Upstream `get_screenshot` (its only option) | 2 | 2044×1818 | 4,745 | **0 of 6** in both runs: the title block was outside the captured area |
+| This repo, full window (1280 px cap) | 2 | 1280×1138 | 1,886 | 5 of 6 in both runs (the title was too small to read) |
+| This repo, `grid=true` preview + 1 crop | 2 | 560×498 + one ~650×290 crop | 600 / 635 | **6 of 6** in both runs |
 
-**Grid screenshots.** A labelled low-res preview tells the assistant where to crop, and the crop stays sharp. On one view of one drawing (window 3618x3218):
+On this display, upstream's capture held only the top-left 80% × 80% of the AutoCAD window (pixel correlation r = 0.999 against this repo's full-window capture of the same view). The right and bottom 20% never reached the model, and that is where a title block sits. Upstream spent 2.5× the tokens of this repo's full window and 7.5× the grid route's, and read none of the 6 values. AutoCAD was on a secondary 2880×2560 monitor with the primary at 120 DPI. The crop is very likely a DPI-scaling bug in upstream's capture, but the cause wasn't isolated, and on a single 100%-scaled monitor upstream may capture the whole window.
 
-| | Full window | Grid preview + 4 crops |
-|---|---|---|
-| Tokens | 1,886 | 520 |
-| Target labels read correctly | 2 of 5 | 5 of 5 |
+**Selection: "tell me exactly what I have selected"** (23 objects on layer TITLE in Layout1: 14 MTEXT, 8 LINE, 1 LWPOLYLINE)
 
-The 5 labels were picked because the full window left them uncertain, so this is a worst case for the full window and says nothing about average accuracy. Those crops were small, about 40 tokens each. At a 270-token crop, the grid route costs more than a full window from the sixth crop on. A full window also answers layout questions that a crop can't.
+| Route | Runs | Exact (count, types and text) | What comes back |
+|---|---|---|---|
+| Upstream: the assistant writes its own `(ssgetfirst)` LISP | 3 | 2 of 3 (one run reported 13 MTEXT and 9 LINE) | Whatever the assistant thought to ask for |
+| This repo: skill + `(mcp:sel-dump)` | 3 | **3 of 3** | Every entity's type, layer, text and geometry, the union bounding box, and where the selection came from (`source: "implied"`) |
 
-## How it compares with upstream
+Selection here is more accurate and more complete, not cheaper. Upstream's runs used 3 to 4 requests and 1.0 to 2.1 KB of result; this repo's used 5 requests and 7.4 KB, part of that a heavier baseline (longer tool descriptions plus the skill). Upstream no longer sends ESC before a command, so live grips survive there too, and an assistant that knows AutoLISP can read them in one call. What this repo adds is the same complete answer every time without that knowledge, plus the `HS` stash for when the grips are gone (an ESC or a command consumed them). Upstream can't recover that case, and this test didn't exercise it.
 
-Upstream became active again in November 2026, so this comparison is dated. It was made by reading upstream's code at `5a7ced7` and hasn't been run against it. Upstream now has journaled native revision batches and Windows dialog recovery (`system(revision)`, `system(desktop)`), and this fork has neither. If you need those, use upstream.
+Caveats: 2 to 3 runs per arm, one drawing, one window, one display setup.
 
-| Area | Upstream at `5a7ced7` | This fork |
+## What else it does
+
+**Select objects, and the assistant sees them.** You select by hand and ask. There's no `HS` to type and nothing to re-select. All 6 earlier test selections read back exactly, covering 7 entity types in Model and on a layout, across 2 AutoCAD sessions. On a real drawing it read a 29,717-object selection in 454 ms, and the count matched the Properties palette.
+
+**The assistant reads the command line itself.** Nobody has to paste prompts or history, even while a command is waiting for input. With LINE waiting on a real drawing, the read cost about 200 tokens, estimated from its size, n = 1. Option keywords can come back as a count, without their names. When a call times out, the error carries the prompt AutoCAD is waiting on, so a hung command explains itself.
+
+**Grid screenshots, beyond the benchmark.** On a second drawing (window 3618×3218), a grid preview plus 4 small crops cost 520 tokens and read 5 of 5 target labels, against 1,886 tokens and 2 of 5 for the full window. The 5 labels were picked because the full window left them uncertain, so that is a worst case for the full window. At a 270-token crop, the grid route costs more than a full window from the sixth crop on, and a full window still answers layout questions a crop can't.
+
+## Other differences from upstream
+
+Read from upstream's code at `5a7ced7`, not run against it. Upstream became active again in November 2026 and has journaled native revision batches and Windows dialog recovery (`system(revision)`, `system(desktop)`), which this repo lacks. If you need those, use upstream.
+
+| Area | Upstream at `5a7ced7` | This repo |
 |---|---|---|
 | Plain saves and DXF export | `drawing(save)` reports success without checking (its `revision` save does check). A failed save once said "saved" on a real drawing | Checks the file on disk and reports failure if it isn't there |
 | Screenshots | Always full size. In one real session, 41 of them came to about 196,000 tokens at 1440p | Capped at 1280 px (about 49,000 tokens for the same 41), with crops, and saving to disk costs 0 until read |
 | Reading a drawing | Entity `get` adds geometry for LINE and CIRCLE only. `revision read` returns native entity data | Full geometry and extents from both backends, plus probes: ask "does this overlap?" or "what does this label say?" and get an exact answer with no screenshot |
-| Timeouts | Keeps a pending receipt and refuses more work until it's reconciled | Says whether the action never started (safe to retry) or may still finish (don't repeat it) |
+| Timeouts | Keeps a pending receipt and refuses more work until it's reconciled | Says whether the action never started (safe to retry) or may still finish (don't repeat it), and attaches the prompt AutoCAD is waiting on |
 | Busy AutoCAD or wrong drawing | `revision` batches check both. Plain tools don't | Refuses inside an active command, and `assert_doc` and the skill's guard refuse the wrong drawing |
 | Switching drawings | Not available | `system(switch_doc)` switches with no click and confirms through `DWGNAME` |
 | Erasing | Erasing something already erased brings it back | Reports "not found" |
 | Opening a drawing | Reports success without checking | Says it can't, and names the drawing that is still active |
 | Safety labels | Marks `system`, which can run any code, as read-only | Each tool labelled correctly, so the assistant knows which actions need your OK |
-| Tests | 226 (CI at `53275a3`) | 879 |
+| Tests | 226 (CI at `53275a3`) | 889 |
 
-This fork also ships working rules that teach an assistant to drive AutoCAD safely ([`skills/`](skills/)).
+This repo also ships working rules that teach an assistant to drive AutoCAD safely ([`skills/`](skills/)).
 Known limits are listed in [docs/known-issues.md](docs/known-issues.md). Error codes and when a retry
 is safe: [docs/error-model.md](docs/error-model.md).
 
@@ -62,7 +78,7 @@ These came up in real drafting work.
 
 `hvkshetry` merged [#18](https://github.com/puran-water/autocad-mcp/pull/18) and [#19](https://github.com/puran-water/autocad-mcp/pull/19) on 2026-11-03. Another contributor's [#15](https://github.com/puran-water/autocad-mcp/pull/15), merged the same day, fixed the duplicated tool results that this fork had also fixed.
 
-The rest of the work is ready as a stack of small pull requests against this fork, each with its own tests and CI run, and hasn't been offered upstream: [#3](https://github.com/WiddlyBits/autocad-mcp/pull/3) to [#10](https://github.com/WiddlyBits/autocad-mcp/pull/10) cover results sent once, screenshot cost controls, tool annotations, entity geometry, probes, IPC timeouts and verified saves, command claims and `assert_doc`, and the error model docs.
+The rest of the work is ready as a stack of small pull requests against this fork, each with its own tests and CI run, and hasn't been offered upstream: [#3](https://github.com/WiddlyBits/autocad-lt-mcp/pull/3) to [#10](https://github.com/WiddlyBits/autocad-lt-mcp/pull/10) cover results sent once, screenshot cost controls, tool annotations, entity geometry, probes, IPC timeouts and verified saves, command claims and `assert_doc`, and the error model docs.
 
 Still fork-only: selection handoff, `system(command_line)`, `switch_doc`, grid and `region_dwg` screenshots, probes, verified saves, the LT 2027 `drawing(plot_pdf)` sequence and the assistant skills.
 
@@ -93,8 +109,8 @@ The server exposes **7 consolidated tools** (`drawing`, `entity`, `layer`, `bloc
 ### 1. Clone and install
 
 ```powershell
-git clone https://github.com/WiddlyBits/autocad-mcp.git
-cd autocad-mcp
+git clone https://github.com/WiddlyBits/autocad-lt-mcp.git
+cd autocad-lt-mcp
 uv sync
 ```
 
@@ -113,12 +129,12 @@ Then add it to the **Startup Suite** in the same dialog (Startup Suite, Contents
 
 ### 3. Connect your assistant
 
-Replace `C:\path\to\autocad-mcp` with your clone's path. `python.exe` must be the **Windows Python** inside the project venv, not WSL Python. `AUTOCAD_MCP_BACKEND` can be `auto` (default: tries File IPC, falls back to ezdxf), `file_ipc` (requires AutoCAD) or `ezdxf` (headless only).
+Replace `C:\path\to\autocad-lt-mcp` with your clone's path. `python.exe` must be the **Windows Python** inside the project venv, not WSL Python. `AUTOCAD_MCP_BACKEND` can be `auto` (default: tries File IPC, falls back to ezdxf), `file_ipc` (requires AutoCAD) or `ezdxf` (headless only).
 
 **Claude** is what this server was developed and tested with. For Claude Code:
 
 ```powershell
-claude.cmd mcp add autocad-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp
+claude.cmd mcp add autocad-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe -m autocad_mcp
 ```
 
 Use `claude.cmd` if npm installed Claude Code: PowerShell drops the `--` on its way through npm's `claude.ps1`, and plain `claude` fails with `unknown option '-m'`. Check with `claude mcp list`, which should show `autocad-mcp` as connected. A native install hasn't been tested. For Claude Desktop, open Settings, Developer, Edit Config, add this to `claude_desktop_config.json`, and restart the app:
@@ -127,7 +143,7 @@ Use `claude.cmd` if npm installed Claude Code: PowerShell drops the `--` on its 
 {
   "mcpServers": {
     "autocad-mcp": {
-      "command": "C:\\path\\to\\autocad-mcp\\.venv\\Scripts\\python.exe",
+      "command": "C:\\path\\to\\autocad-lt-mcp\\.venv\\Scripts\\python.exe",
       "args": ["-m", "autocad_mcp"],
       "env": { "AUTOCAD_MCP_BACKEND": "auto" }
     }
@@ -145,7 +161,7 @@ If Claude Code runs in WSL, launch the server through `cmd.exe` so it runs as a 
     "autocad-mcp": {
       "type": "stdio",
       "command": "cmd.exe",
-      "args": ["/d", "/s", "/c", "cd /d C:\\path\\to\\autocad-mcp && .venv\\Scripts\\python.exe -m autocad_mcp"],
+      "args": ["/d", "/s", "/c", "cd /d C:\\path\\to\\autocad-lt-mcp && .venv\\Scripts\\python.exe -m autocad_mcp"],
       "env": { "AUTOCAD_MCP_BACKEND": "auto" }
     }
   }
@@ -160,7 +176,7 @@ Gemini and Codex were tested on 2026-11-07 against the ezdxf backend, with no Au
 {
   "mcpServers": {
     "autocad-mcp": {
-      "command": "C:\\path\\to\\autocad-mcp\\.venv\\Scripts\\python.exe",
+      "command": "C:\\path\\to\\autocad-lt-mcp\\.venv\\Scripts\\python.exe",
       "args": ["-m", "autocad_mcp"],
       "env": { "AUTOCAD_MCP_BACKEND": "auto" }
     }
@@ -172,11 +188,11 @@ Gemini and Codex were tested on 2026-11-07 against the ezdxf backend, with no Au
 
 **Gemini CLI no longer works with a personal Google account.** Google [stopped serving it](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/) on June 18, 2026 for free, AI Pro and Ultra accounts. Gemini CLI 0.67.0 signs in, then refuses with `This client is no longer supported for Gemini Code Assist for individuals`. It still runs with a paid Gemini API key or a Code Assist Standard or Enterprise license. With the block above under `mcpServers` in `%USERPROFILE%\.gemini\settings.json`, `gemini mcp list` showed `autocad-mcp` as Connected, but only after the folder Gemini runs in was trusted; before that it reported Disabled. No tool calls through Gemini CLI have been tested.
 
-**OpenAI Codex CLI.** Tested with Codex CLI 0.167.0, signed in with ChatGPT: 10 of 10 calls succeeded on the first try, a screenshot included. Add this to `%USERPROFILE%\.codex\config.toml`. The [documented](https://developers.openai.com/codex/mcp) `codex mcp add autocad-mcp --env AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-mcp\.venv\Scripts\python.exe -m autocad_mcp` should write the same entry, but wasn't the form tested.
+**OpenAI Codex CLI.** Tested with Codex CLI 0.167.0, signed in with ChatGPT: 10 of 10 calls succeeded on the first try, a screenshot included. Add this to `%USERPROFILE%\.codex\config.toml`. The [documented](https://developers.openai.com/codex/mcp) `codex mcp add autocad-mcp --env AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe -m autocad_mcp` should write the same entry, but wasn't the form tested.
 
 ```toml
 [mcp_servers.autocad-mcp]
-command = 'C:\path\to\autocad-mcp\.venv\Scripts\python.exe'
+command = 'C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe'
 args = ["-m", "autocad_mcp"]
 
 [mcp_servers.autocad-mcp.env]

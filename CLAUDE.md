@@ -23,7 +23,7 @@ snapshot is the cheapest way to convert a caught regression into a committed one
 ## Git
 
 ```
-origin    https://github.com/WiddlyBits/autocad-mcp.git   <- Gianni's fork, push here
+origin    https://github.com/WiddlyBits/autocad-lt-mcp.git   <- Gianni's fork, push here
 upstream  https://github.com/puran-water/autocad-mcp.git  <- author's repo, pull only
 ```
 
@@ -46,11 +46,11 @@ upstream  https://github.com/puran-water/autocad-mcp.git  <- author's repo, pull
   SHA to local `HEAD`. Exit 0 alone is not proof.
 - Claude never supplies the credential; Gianni authenticates in GCM's own UI.
 - **`gh` CLI is installed** (`C:\Program Files\GitHub CLI`, on Git Bash PATH) and authenticated as
-  WiddlyBits via keyring. Use it for CI: `gh run list -R WiddlyBits/autocad-mcp`,
-  `gh run view <id> -R WiddlyBits/autocad-mcp --log-failed`. CI runs on `ubuntu-latest`, so a
+  WiddlyBits via keyring. Use it for CI: `gh run list -R WiddlyBits/autocad-lt-mcp`,
+  `gh run view <id> -R WiddlyBits/autocad-lt-mcp --log-failed`. CI runs on `ubuntu-latest`, so a
   test that only passes because `C:/temp` exists locally will fail there.
 - For PRs to upstream, build the compare URL by hand and let Gianni decide whether to submit:
-  `https://github.com/puran-water/autocad-mcp/compare/main...WiddlyBits:autocad-mcp:<branch>?expand=1`
+  `https://github.com/puran-water/autocad-mcp/compare/main...WiddlyBits:autocad-lt-mcp:<branch>?expand=1`
 - Identity is set **repo-local only** to `Gianni <giannimagnabooking@gmail.com>` — deliberately not
   global. Never commit as `hvkshetry`.
 
