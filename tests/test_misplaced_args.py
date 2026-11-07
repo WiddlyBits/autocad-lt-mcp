@@ -32,9 +32,18 @@ async def test_data_key_at_top_level_names_the_missing_argument():
 
 async def test_polyline_without_points_is_refused_not_created_empty():
     await _call("drawing", {"operation": "create"})
-    r = await _call("entity", {"operation": "create_polyline", "data": {"points": [[0, 0], [10, 0]]}})
+    r = await _call("entity", {"operation": "create_polyline", "data": {"closed": True}})
     assert r["ok"] is False and "points" in r["error"]
     assert (await _call("entity", {"operation": "count"}))["payload"]["count"] == 0
+
+
+async def test_layer_and_points_inside_data_are_used():
+    await _call("drawing", {"operation": "create"})
+    await _call("layer", {"operation": "create", "data": {"name": "P1"}})
+    r = await _call("entity", {"operation": "create_polyline", "data": {"points": [[0, 0], [10, 0]], "layer": "P1"}})
+    assert r["ok"] is True
+    got = await _call("entity", {"operation": "get", "entity_id": r["payload"]["handle"]})
+    assert got["payload"]["layer"] == "P1"
 
 
 async def test_entity_id_inside_data_is_named_not_reported_as_entity_none():
