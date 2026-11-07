@@ -24,6 +24,12 @@ Exact signatures — match these without re-reading the LSP files:
 - **sel-dump truncation** — `"truncated":true` when count > `*mcp-max-selection*` (200).
   Re-select a tighter set.
 - **`timeout_mutating`**, `may_have_applied: true` — may have run. Check state before re-sending.
+- **`pending_prompt`** — every IPC timeout (`timeout_mutating`, `timeout_not_dispatched`, the
+  plain `Timeout waiting for result…`) carries the command-line prompt AutoCAD is waiting on,
+  e.g. `"LINE Specify next point or [Undo]:"`. A command prompt there means a command is still
+  open: finish or cancel it before re-sending. `""` means nothing was read. If the read failed,
+  `pending_prompt_error` holds why instead. `command_line_timeout` carries only `document`
+  (the title-bar drawing), since the prompt read is what timed out.
 
 ## Symptoms
 

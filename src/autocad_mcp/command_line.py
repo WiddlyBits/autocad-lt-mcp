@@ -132,7 +132,9 @@ async def read_command_line(hwnd: int | None, n: int = DEFAULT_LINES) -> Command
         out, err = await asyncio.wait_for(proc.communicate(), timeout=TIMEOUT_S)
     except asyncio.TimeoutError:
         proc.kill()
-        return CommandResult(ok=False, error=f"command_line_timeout after {TIMEOUT_S}s")
+        # The prompt is what timed out, so the title bar is all that is left to report.
+        return CommandResult(ok=False, error=f"command_line_timeout after {TIMEOUT_S}s",
+                             payload={"document": window_document(hwnd)})
     except OSError as exc:
         return CommandResult(ok=False, error=f"command_line_spawn_failed: {exc}")
     if proc.returncode != 0:

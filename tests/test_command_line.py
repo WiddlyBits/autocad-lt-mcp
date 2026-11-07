@@ -81,6 +81,19 @@ class TestRead:
             r = asyncio.run(cl.read_command_line(5, 10_000))
         assert not r.ok and "boom" in r.error
 
+    def test_timeout_still_names_the_document(self):
+        class P:
+            def kill(self):
+                pass
+            async def communicate(self):
+                await asyncio.sleep(10)
+        fake = type("W", (), {"GetWindowText": staticmethod(
+            lambda h: "Autodesk AutoCAD LT 2027  - [C:\jobs\Panel A.dwg]")})
+        with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=P())),              patch.object(cl, "TIMEOUT_S", 0.05),              patch.dict("sys.modules", {"win32gui": fake}):
+            r = asyncio.run(cl.read_command_line(5, 1))
+        assert r.error == "command_line_timeout after 0.05s"
+        assert r.payload == {"document": "Panel A.dwg"}
+
     def test_ok_path(self):
         class P:
             returncode = 0

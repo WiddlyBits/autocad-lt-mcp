@@ -308,10 +308,28 @@ class FileIPCBackend(AutoCADBackend):
         """Core IPC logic (must be called under _lock)."""
         result = await self._dispatch_once(command, params)
         if result.error != "timeout_not_dispatched" or _retried:
-            return result
+            return await self._with_pending_prompt(result)
         # The command never started, so re-sending cannot double-apply it.
         log.warning("timeout_not_dispatched_retry", command=command)
         return await self._dispatch_unlocked(command, params, _retried=True)
+
+    async def _with_pending_prompt(self, result: CommandResult) -> CommandResult:
+        """On a timeout, attach what AutoCAD's command line is waiting on.
+
+        A hung dispatch is usually a command sitting at a prompt; the UIA reader
+        works while the dispatcher is blocked, so the error explains itself.
+        """
+        if result.ok or not (result.error or "").lower().startswith("timeout"):
+            return result
+        from autocad_mcp.command_line import read_command_line
+
+        cl = await read_command_line(self._hwnd, 1)
+        payload = dict(result.payload or {})
+        if cl.ok:
+            payload["pending_prompt"] = cl.payload.get("prompt", "")
+        else:
+            payload["pending_prompt_error"] = cl.error
+        return CommandResult(ok=False, error=result.error, payload=payload)
 
     async def _dispatch_once(self, command: str, params: dict) -> CommandResult:
         """Write one command file, trigger the dispatcher, and wait for its result."""
