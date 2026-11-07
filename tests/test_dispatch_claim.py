@@ -31,7 +31,7 @@ DISPATCH_LSP = Path(__file__).parent.parent / "lisp-code" / "mcp_dispatch.lsp"
 
 
 def _backend(tmp_path, version):
-    from autocad_mcp.backends.file_ipc import FileIPCBackend
+    from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
 
     backend = FileIPCBackend()
     backend._ipc_dir = tmp_path
@@ -65,7 +65,7 @@ async def _run(backend, command, on_trigger=lambda d: None):
         on_trigger(backend._ipc_dir)
 
     with patch.object(sys, "platform", "linux"), \
-            patch("autocad_mcp.backends.file_ipc.TIMEOUT", 0.3), \
+            patch("autocad_lt_mcp.backends.file_ipc.TIMEOUT", 0.3), \
             patch.object(backend, "_type_dispatch_trigger", side_effect=trigger):
         result = await backend._dispatch_unlocked(command, {"code": "(mcp:sys-snapshot)"})
     return result, len(calls)
@@ -73,7 +73,7 @@ async def _run(backend, command, on_trigger=lambda d: None):
 
 def _claim(ipc_dir):
     """What the v2 LISP does first: rename cmd_<id> to run_<id>, then hang."""
-    for f in ipc_dir.glob("autocad_mcp_cmd_*.json"):
+    for f in ipc_dir.glob("autocad_lt_mcp_cmd_*.json"):
         f.rename(f.with_name(f.name.replace("_cmd_", "_run_")))
 
 
@@ -83,9 +83,9 @@ async def _dispatch_answered(backend, ipc_dir, skip=None):
 
     def answer(inject_esc=False):
         esc.append(inject_esc)
-        mine = next(f for f in ipc_dir.glob("autocad_mcp_cmd_*.json") if f != skip)
+        mine = next(f for f in ipc_dir.glob("autocad_lt_mcp_cmd_*.json") if f != skip)
         rid = json.loads(mine.read_text())["request_id"]
-        (ipc_dir / f"autocad_mcp_result_{rid}.json").write_text(
+        (ipc_dir / f"autocad_lt_mcp_result_{rid}.json").write_text(
             json.dumps({"request_id": rid, "ok": True})
         )
 
@@ -104,7 +104,7 @@ class TestTimeoutClaim:
         assert result.error == "timeout_not_dispatched"
         assert result.payload["may_have_applied"] is False
         assert triggers == 2
-        assert not list(tmp_path.glob("autocad_mcp_cmd_*.json"))
+        assert not list(tmp_path.glob("autocad_lt_mcp_cmd_*.json"))
 
     @pytest.mark.asyncio
     async def test_unclaimed_then_claimed_on_retry_stays_mutating(self, tmp_path):
@@ -138,16 +138,16 @@ class TestTimeoutClaim:
 
     def test_run_files_count_as_stale(self, tmp_path):
         backend = _backend(tmp_path, version=2)
-        run = tmp_path / "autocad_mcp_run_abc.json"
+        run = tmp_path / "autocad_lt_mcp_run_abc.json"
         run.write_text("{}")
         os.utime(run, (time.time() - 3600,) * 2)
-        assert [p.name for p in backend._check_stale_ipc_files()] == ["autocad_mcp_run_abc.json"]
+        assert [p.name for p in backend._check_stale_ipc_files()] == ["autocad_lt_mcp_run_abc.json"]
 
     @pytest.mark.asyncio
     async def test_another_servers_in_flight_file_is_left_alone(self, tmp_path):
         """No ESC (it would clear grips) and no delete (it would time them out)."""
         backend = _backend(tmp_path, version=2)
-        theirs = tmp_path / "autocad_mcp_cmd_otherserver.json"
+        theirs = tmp_path / "autocad_lt_mcp_cmd_otherserver.json"
         theirs.write_text("{}")
         esc = await _dispatch_answered(backend, tmp_path, skip=theirs)
         assert esc == [False]
@@ -156,7 +156,7 @@ class TestTimeoutClaim:
     @pytest.mark.asyncio
     async def test_aged_file_still_triggers_esc_recovery(self, tmp_path):
         backend = _backend(tmp_path, version=2)
-        old = tmp_path / "autocad_mcp_run_timedout.json"
+        old = tmp_path / "autocad_lt_mcp_run_timedout.json"
         old.write_text("{}")
         os.utime(old, (time.time() - 3600,) * 2)
         esc = await _dispatch_answered(backend, tmp_path)
@@ -164,9 +164,9 @@ class TestTimeoutClaim:
         assert not old.exists()
 
     def test_withdraw_reports_whether_file_existed(self, tmp_path):
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
 
-        f = tmp_path / "autocad_mcp_cmd_x.json"
+        f = tmp_path / "autocad_lt_mcp_cmd_x.json"
         f.write_text("{}")
         assert FileIPCBackend._withdraw(f) is True
         assert FileIPCBackend._withdraw(f) is False
@@ -182,9 +182,9 @@ class TestDispatcherLisp:
         assert rename < body.index("'mcp-dispatch-command")
 
     def test_run_file_name_slices_after_cmd_prefix(self):
-        # substr is 1-based: "autocad_mcp_cmd_" is 16 chars, so the id starts at 17.
-        assert len("autocad_mcp_cmd_") == 16
-        assert '"autocad_mcp_run_" (substr (car cmd-files) 17)' in self.text
+        # substr is 1-based: "autocad_lt_mcp_cmd_" is 19 chars, so the id starts at 20.
+        assert len("autocad_lt_mcp_cmd_") == 19
+        assert '"autocad_lt_mcp_run_" (substr (car cmd-files) 20)' in self.text
 
     def test_ping_reports_dispatcher_version(self):
         assert re.search(r"\(setq \*mcp-dispatcher-version\* 2\)", self.text)
@@ -216,13 +216,13 @@ class TestPingVersion:
     ])
     @pytest.mark.asyncio
     async def test_initialize_reads_version(self, tmp_path, payload, version):
-        from autocad_mcp.backends.base import CommandResult
+        from autocad_lt_mcp.backends.base import CommandResult
 
         # tmp_path, not the default C:/temp: execute_lisp writes a .lsp there,
         # which only works on a machine where C:/temp already exists.
         backend = _backend(tmp_path, version=None)
         replies = [CommandResult(ok=True, payload=payload), CommandResult(ok=True, payload="ACADLT")]
-        with patch("autocad_mcp.backends.file_ipc.find_autocad_window", return_value=1), \
+        with patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", return_value=1), \
                 patch.object(backend, "_find_command_line_hwnd", return_value=None), \
                 patch.object(backend, "_cleanup_stale_files"), \
                 patch.object(backend, "_dispatch", side_effect=replies):
@@ -238,7 +238,7 @@ class TestSaveVerification:
 
     @staticmethod
     def _save(backend, path, write):
-        from autocad_mcp.backends.base import CommandResult
+        from autocad_lt_mcp.backends.base import CommandResult
 
         async def dispatch(cmd, data):
             write()
@@ -308,11 +308,11 @@ class TestPendingPrompt:
     PROMPT = "LINE Specify next point or [Undo]:"
 
     def _reader(self, ok=True):
-        from autocad_mcp.backends.base import CommandResult
+        from autocad_lt_mcp.backends.base import CommandResult
 
         r = (CommandResult(ok=True, payload={"prompt": self.PROMPT}) if ok
              else CommandResult(ok=False, error="command_line needs Windows UI Automation"))
-        return patch("autocad_mcp.command_line.read_command_line", AsyncMock(return_value=r))
+        return patch("autocad_lt_mcp.command_line.read_command_line", AsyncMock(return_value=r))
 
     @pytest.mark.asyncio
     async def test_timeout_mutating_keeps_its_fields_and_adds_the_prompt(self, tmp_path):
@@ -353,7 +353,7 @@ class TestPendingPrompt:
 
     @pytest.mark.asyncio
     async def test_non_timeout_errors_skip_the_read(self, tmp_path):
-        from autocad_mcp.backends.base import CommandResult
+        from autocad_lt_mcp.backends.base import CommandResult
 
         backend = _backend(tmp_path, version=2)
         busy = CommandResult(ok=False, error="autocad_busy")

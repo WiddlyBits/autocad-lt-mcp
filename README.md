@@ -93,6 +93,17 @@ Two backends, one API:
 
 The server exposes **7 consolidated tools** (`drawing`, `entity`, `layer`, `block`, `annotation`, `view`, `system`) over the MCP stdio transport. An MCP client (Claude Desktop, Claude Code, etc.) connects and drives AutoCAD through natural-language requests.
 
+## Upgrading from `autocad-mcp`
+
+This fork was renamed from `autocad-mcp` to `autocad-lt-mcp` on 2026-11-07. An install set up before then needs these changes:
+
+1. `git pull`, then `uv sync` in the clone. The Python module is now `autocad_lt_mcp`, so `-m autocad_mcp` stops working.
+2. In your client config, change the args to `-m autocad_lt_mcp`. Renaming the server entry from `autocad-mcp` to `autocad-lt-mcp` is optional, but it changes the tool names to `mcp__autocad-lt-mcp__*`, so update any permission rules that name the old prefix. For Claude Code: `claude.cmd mcp remove autocad-mcp -s user`, then run the `mcp add` line in step 3 below.
+3. Restart AutoCAD, or `APPLOAD` `lisp-code\mcp_dispatch.lsp` again. The IPC files in `C:\temp` are now named `autocad_lt_mcp_*`, so an AutoCAD that still has the old dispatcher loaded never sees a command, and every call times out.
+4. The skills are now `autocad-lt-mcp-workflow` and `autocad-lt-save-verification`. Upload the new ones and delete the old two.
+
+The `AUTOCAD_MCP_*` environment variables keep their names.
+
 ## Prerequisites (File IPC backend)
 
 - **Windows 10/11** (the File IPC backend uses Win32 APIs for focus-free window messaging)
@@ -134,17 +145,17 @@ Replace `C:\path\to\autocad-lt-mcp` with your clone's path. `python.exe` must be
 **Claude** is what this server was developed and tested with. For Claude Code:
 
 ```powershell
-claude.cmd mcp add autocad-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe -m autocad_mcp
+claude.cmd mcp add autocad-lt-mcp -s user -e AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe -m autocad_lt_mcp
 ```
 
-Use `claude.cmd` if npm installed Claude Code: PowerShell drops the `--` on its way through npm's `claude.ps1`, and plain `claude` fails with `unknown option '-m'`. Check with `claude mcp list`, which should show `autocad-mcp` as connected. A native install hasn't been tested. For Claude Desktop, open Settings, Developer, Edit Config, add this to `claude_desktop_config.json`, and restart the app:
+Use `claude.cmd` if npm installed Claude Code: PowerShell drops the `--` on its way through npm's `claude.ps1`, and plain `claude` fails with `unknown option '-m'`. Check with `claude mcp list`, which should show `autocad-lt-mcp` as connected. A native install hasn't been tested. For Claude Desktop, open Settings, Developer, Edit Config, add this to `claude_desktop_config.json`, and restart the app:
 
 ```json
 {
   "mcpServers": {
-    "autocad-mcp": {
+    "autocad-lt-mcp": {
       "command": "C:\\path\\to\\autocad-lt-mcp\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "autocad_mcp"],
+      "args": ["-m", "autocad_lt_mcp"],
       "env": { "AUTOCAD_MCP_BACKEND": "auto" }
     }
   }
@@ -158,10 +169,10 @@ If Claude Code runs in WSL, launch the server through `cmd.exe` so it runs as a 
 ```json
 {
   "mcpServers": {
-    "autocad-mcp": {
+    "autocad-lt-mcp": {
       "type": "stdio",
       "command": "cmd.exe",
-      "args": ["/d", "/s", "/c", "cd /d C:\\path\\to\\autocad-lt-mcp && .venv\\Scripts\\python.exe -m autocad_mcp"],
+      "args": ["/d", "/s", "/c", "cd /d C:\\path\\to\\autocad-lt-mcp && .venv\\Scripts\\python.exe -m autocad_lt_mcp"],
       "env": { "AUTOCAD_MCP_BACKEND": "auto" }
     }
   }
@@ -175,33 +186,33 @@ Gemini and Codex were tested on 2026-11-07 against the ezdxf backend, with no Au
 ```json
 {
   "mcpServers": {
-    "autocad-mcp": {
+    "autocad-lt-mcp": {
       "command": "C:\\path\\to\\autocad-lt-mcp\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "autocad_mcp"],
+      "args": ["-m", "autocad_lt_mcp"],
       "env": { "AUTOCAD_MCP_BACKEND": "auto" }
     }
   }
 }
 ```
 
-`agy mcp list` should show `autocad-mcp` as `enabled`. Antigravity calls these tools through its own `call_mcp_tool` without showing the model their schemas first, so the model guesses where arguments go and retries from the error, which names the right place. A 9-step test drawing took 18 calls, 9 of them retries, and the saved file matched what was asked.
+`agy mcp list` should show `autocad-lt-mcp` as `enabled`. Antigravity calls these tools through its own `call_mcp_tool` without showing the model their schemas first, so the model guesses where arguments go and retries from the error, which names the right place. A 9-step test drawing took 18 calls, 9 of them retries, and the saved file matched what was asked.
 
-**Gemini CLI no longer works with a personal Google account.** Google [stopped serving it](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/) on June 18, 2026 for free, AI Pro and Ultra accounts. Gemini CLI 0.67.0 signs in, then refuses with `This client is no longer supported for Gemini Code Assist for individuals`. It still runs with a paid Gemini API key or a Code Assist Standard or Enterprise license. With the block above under `mcpServers` in `%USERPROFILE%\.gemini\settings.json`, `gemini mcp list` showed `autocad-mcp` as Connected, but only after the folder Gemini runs in was trusted; before that it reported Disabled. No tool calls through Gemini CLI have been tested.
+**Gemini CLI no longer works with a personal Google account.** Google [stopped serving it](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/) on June 18, 2026 for free, AI Pro and Ultra accounts. Gemini CLI 0.67.0 signs in, then refuses with `This client is no longer supported for Gemini Code Assist for individuals`. It still runs with a paid Gemini API key or a Code Assist Standard or Enterprise license. With the block above under `mcpServers` in `%USERPROFILE%\.gemini\settings.json`, `gemini mcp list` showed `autocad-lt-mcp` as Connected, but only after the folder Gemini runs in was trusted; before that it reported Disabled. No tool calls through Gemini CLI have been tested.
 
-**OpenAI Codex CLI.** Tested with Codex CLI 0.167.0, signed in with ChatGPT: 10 of 10 calls succeeded on the first try, a screenshot included. Add this to `%USERPROFILE%\.codex\config.toml`. The [documented](https://developers.openai.com/codex/mcp) `codex mcp add autocad-mcp --env AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe -m autocad_mcp` should write the same entry, but wasn't the form tested.
+**OpenAI Codex CLI.** Tested with Codex CLI 0.167.0, signed in with ChatGPT: 10 of 10 calls succeeded on the first try, a screenshot included. Add this to `%USERPROFILE%\.codex\config.toml`. The [documented](https://developers.openai.com/codex/mcp) `codex mcp add autocad-lt-mcp --env AUTOCAD_MCP_BACKEND=auto -- C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe -m autocad_lt_mcp` should write the same entry, but wasn't the form tested.
 
 ```toml
-[mcp_servers.autocad-mcp]
+[mcp_servers.autocad-lt-mcp]
 command = 'C:\path\to\autocad-lt-mcp\.venv\Scripts\python.exe'
-args = ["-m", "autocad_mcp"]
+args = ["-m", "autocad_lt_mcp"]
 
-[mcp_servers.autocad-mcp.env]
+[mcp_servers.autocad-lt-mcp.env]
 AUTOCAD_MCP_BACKEND = "auto"
 ```
 
-Codex asks before each call to this server, because its tools are marked as able to change the drawing. `codex exec` can't ask, so it refuses them with `MCP tool call requires approval, but approval policy is never`. To let this server's tools through there, add `default_tools_approval_mode = "approve"` under `[mcp_servers.autocad-mcp]`. It was tested as `-c 'mcp_servers.autocad-mcp.default_tools_approval_mode="approve"'`. Codex names the tools `mcp__autocad_mcp__system` and so on.
+Codex asks before each call to this server, because its tools are marked as able to change the drawing. `codex exec` can't ask, so it refuses them with `MCP tool call requires approval, but approval policy is never`. To let this server's tools through there, add `default_tools_approval_mode = "approve"` under `[mcp_servers.autocad-lt-mcp]`. It was tested as `-c 'mcp_servers.autocad-lt-mcp.default_tools_approval_mode="approve"'`. Codex names the tools `mcp__autocad_lt_mcp__system` and so on.
 
-**Skills outside Claude.** Copy `skills\autocad-mcp-workflow` and `skills\autocad-save-verification` into the client's skills folder:
+**Skills outside Claude.** Copy `skills\autocad-lt-mcp-workflow` and `skills\autocad-lt-save-verification` into the client's skills folder:
 
 - **Antigravity:** `%USERPROFILE%\.gemini\config\skills\`. It found both, loaded both for a select, move and save request, and named `system(init)` as its first call.
 - **Codex:** `%USERPROFILE%\.agents\skills\`. It lists both, but it reads a `SKILL.md` with a shell command that needs your approval, and `codex exec` refused that read. Without the skill text, it skipped `init`. With the read approved, it loaded both and named `init` first.
@@ -312,7 +323,7 @@ The upper clamp is 2576 because the vision API downscales anything longer before
 MCP Client (Claude)
     │  stdio (JSON-RPC)
     ▼
-Python MCP Server (autocad_mcp)
+Python MCP Server (autocad_lt_mcp)
     │
     ├── File IPC Backend ──► C:/temp/*.json ──► mcp_dispatch.lsp (AutoCAD LT)
     │   PostMessageW(WM_CHAR) to MDIClient — no focus steal

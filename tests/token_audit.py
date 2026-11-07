@@ -44,11 +44,11 @@ _PATCH = 28
 # without one of these in the preceding few calls is the pattern this script is
 # looking for: reaching for pixels before trying the cheap question.
 CHEAP_PROBES = {
-    "mcp__autocad-mcp__drawing",
-    "mcp__autocad-mcp__entity",
-    "mcp__autocad-mcp__layer",
-    "mcp__autocad-mcp__block",
-    "mcp__autocad-mcp__system",
+    "mcp__autocad-lt-mcp__drawing",
+    "mcp__autocad-lt-mcp__entity",
+    "mcp__autocad-lt-mcp__layer",
+    "mcp__autocad-lt-mcp__block",
+    "mcp__autocad-lt-mcp__system",
 }
 
 # How many preceding tool calls count as "the model tried something cheap first".

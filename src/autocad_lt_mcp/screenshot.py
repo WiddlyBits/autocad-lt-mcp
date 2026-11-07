@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from autocad_mcp.config import SCREENSHOT_MAX_DIMENSION
+from autocad_lt_mcp.config import SCREENSHOT_MAX_DIMENSION
 
 if TYPE_CHECKING:
     import ezdxf

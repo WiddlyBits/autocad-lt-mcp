@@ -107,7 +107,7 @@ def _raise_if_start_tab_active() -> None:
     read an empty in-memory drawing (entity_count 0, save_path null) instead of
     failing. An AutoCAD that is present must never be mistaken for one that is not.
     """
-    from autocad_mcp.doc_switch import find_autocad_frame, open_document_titles
+    from autocad_lt_mcp.doc_switch import find_autocad_frame, open_document_titles
 
     frame = find_autocad_frame()
     if not frame:
@@ -134,7 +134,7 @@ def detect_backend() -> str:
     if backend_env in ("auto", "file_ipc"):
         if WIN32_AVAILABLE:
             try:
-                from autocad_mcp.backends.file_ipc import find_autocad_window
+                from autocad_lt_mcp.backends.file_ipc import find_autocad_window
 
                 hwnd = find_autocad_window()
                 if hwnd:

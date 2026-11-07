@@ -1,10 +1,10 @@
 """File-based IPC backend for AutoCAD LT.
 
 Protocol:
-1. Python writes JSON command to C:/temp/autocad_mcp_cmd_{request_id}.json
+1. Python writes JSON command to C:/temp/autocad_lt_mcp_cmd_{request_id}.json
 2. Python types the fixed string "(c:mcp-dispatch)" + Enter
 3. LISP reads cmd, dispatches via command map, writes result to
-   C:/temp/autocad_mcp_result_{request_id}.json
+   C:/temp/autocad_lt_mcp_result_{request_id}.json
 4. Python polls for result file (100ms intervals, 10s timeout)
 """
 
@@ -20,8 +20,8 @@ from pathlib import Path
 
 import structlog
 
-from autocad_mcp.backends.base import AutoCADBackend, BackendCapabilities, CommandResult
-from autocad_mcp.config import IPC_DIR, IPC_TIMEOUT, LISP_DIR, SCREENSHOT_MAX_DIMENSION
+from autocad_lt_mcp.backends.base import AutoCADBackend, BackendCapabilities, CommandResult
+from autocad_lt_mcp.config import IPC_DIR, IPC_TIMEOUT, LISP_DIR, SCREENSHOT_MAX_DIMENSION
 
 log = structlog.get_logger()
 
@@ -175,7 +175,7 @@ class FileIPCBackend(AutoCADBackend):
 
         # Set up screenshot provider
         try:
-            from autocad_mcp.screenshot import Win32ScreenshotProvider
+            from autocad_lt_mcp.screenshot import Win32ScreenshotProvider
 
             self._screenshot_provider = Win32ScreenshotProvider(self._hwnd)
         except Exception:
@@ -288,7 +288,7 @@ class FileIPCBackend(AutoCADBackend):
         self._hwnd = hwnd
         self._command_hwnd = self._find_command_line_hwnd()
         try:
-            from autocad_mcp.screenshot import Win32ScreenshotProvider
+            from autocad_lt_mcp.screenshot import Win32ScreenshotProvider
             self._screenshot_provider = Win32ScreenshotProvider(self._hwnd)
         except Exception:
             pass
@@ -321,7 +321,7 @@ class FileIPCBackend(AutoCADBackend):
         """
         if result.ok or not (result.error or "").lower().startswith("timeout"):
             return result
-        from autocad_mcp.command_line import read_command_line
+        from autocad_lt_mcp.command_line import read_command_line
 
         cl = await read_command_line(self._hwnd, 1)
         payload = dict(result.payload or {})
@@ -334,8 +334,8 @@ class FileIPCBackend(AutoCADBackend):
     async def _dispatch_once(self, command: str, params: dict) -> CommandResult:
         """Write one command file, trigger the dispatcher, and wait for its result."""
         request_id = uuid.uuid4().hex[:12]
-        cmd_file = self._ipc_dir / f"autocad_mcp_cmd_{request_id}.json"
-        result_file = self._ipc_dir / f"autocad_mcp_result_{request_id}.json"
+        cmd_file = self._ipc_dir / f"autocad_lt_mcp_cmd_{request_id}.json"
+        result_file = self._ipc_dir / f"autocad_lt_mcp_result_{request_id}.json"
         tmp_file = cmd_file.with_suffix(".tmp")
 
         # Detect and remove leftover IPC files from a timed-out dispatch.
@@ -444,7 +444,7 @@ class FileIPCBackend(AutoCADBackend):
         found: list[Path] = []
         now = time.time()
         try:
-            for pattern in ("autocad_mcp_cmd_*.json", "autocad_mcp_run_*.json", "autocad_mcp_result_*.json"):
+            for pattern in ("autocad_lt_mcp_cmd_*.json", "autocad_lt_mcp_run_*.json", "autocad_lt_mcp_result_*.json"):
                 for f in self._ipc_dir.glob(pattern):
                     try:
                         if now - f.stat().st_mtime >= TIMEOUT:
@@ -541,7 +541,7 @@ class FileIPCBackend(AutoCADBackend):
         """Remove stale IPC files from previous sessions."""
         try:
             now = time.time()
-            for pattern in ("autocad_mcp_*.json", "autocad_mcp_*.tmp", "autocad_mcp_lisp_*.lsp"):
+            for pattern in ("autocad_lt_mcp_*.json", "autocad_lt_mcp_*.tmp", "autocad_lt_mcp_lisp_*.lsp"):
                 for f in self._ipc_dir.glob(pattern):
                     if now - f.stat().st_mtime > STALE_THRESHOLD:
                         f.unlink(missing_ok=True)
@@ -662,7 +662,7 @@ class FileIPCBackend(AutoCADBackend):
         # this path returned the document name without hanging. Inline code is
         # loaded from a temp file exactly like (load "x.lsp"), so both are covered.
         request_id = uuid.uuid4().hex[:12]
-        code_file = self._ipc_dir / f"autocad_mcp_lisp_{request_id}.lsp"
+        code_file = self._ipc_dir / f"autocad_lt_mcp_lisp_{request_id}.lsp"
         code_file.write_text(code, encoding="utf-8")
         return await self._dispatch("execute-lisp", {
             "code_file": str(code_file).replace("\\", "/")
@@ -732,7 +732,7 @@ class FileIPCBackend(AutoCADBackend):
         Bypasses the dispatcher on purpose: it refuses every call while a
         command is waiting for input, which is exactly when this is wanted.
         """
-        from autocad_mcp.command_line import read_command_line
+        from autocad_lt_mcp.command_line import read_command_line
 
         if not self._hwnd:
             self._reacquire_hwnd()
@@ -967,7 +967,7 @@ class FileIPCBackend(AutoCADBackend):
         a twisted view, a model-space viewport active on a layout, or tiled
         viewports (SCREENSIZE then describes one viewport, not the canvas).
         """
-        from autocad_mcp.screenshot import dwg_bbox_to_px
+        from autocad_lt_mcp.screenshot import dwg_bbox_to_px
 
         if self._screenshot_provider is None:
             raise ValueError("region_dwg: no window capture available")

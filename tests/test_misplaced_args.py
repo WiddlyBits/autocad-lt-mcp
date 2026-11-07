@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(
 
 
 async def _call(tool, args):
-    from autocad_mcp.server import mcp
+    from autocad_lt_mcp.server import mcp
 
     result = await mcp.call_tool(tool, args)
     blocks = result[0] if isinstance(result, tuple) else result

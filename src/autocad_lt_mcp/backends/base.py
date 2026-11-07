@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from autocad_mcp.config import SCREENSHOT_MAX_DIMENSION
+from autocad_lt_mcp.config import SCREENSHOT_MAX_DIMENSION
 
 
 @dataclass

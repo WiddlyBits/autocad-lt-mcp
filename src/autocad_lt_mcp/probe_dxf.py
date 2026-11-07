@@ -16,8 +16,8 @@ from pathlib import Path
 
 import ezdxf
 
-from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
-from autocad_mcp.probes import BBox, snapshot
+from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
+from autocad_lt_mcp.probes import BBox, snapshot
 
 
 def entity_info(entity) -> dict:
@@ -176,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     import json as _json
 
     parser = argparse.ArgumentParser(
-        prog="python -m autocad_mcp.probe_dxf",
+        prog="python -m autocad_lt_mcp.probe_dxf",
         description="Read a DXF exported from AutoCAD, without AutoCAD and without a screenshot.",
     )
     parser.add_argument("dxf", type=Path, help="path to a .dxf (drawing(save_as_dxf) writes one)")

@@ -21,7 +21,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Iterable, Sequence
 
-from autocad_mcp.config import IPC_TIMEOUT
+from autocad_lt_mcp.config import IPC_TIMEOUT
 
 #: v2 added the `space` line and the grid's mode. Both exist because v1 could
 #: not say which space it described, and a snapshot of the wrong space is

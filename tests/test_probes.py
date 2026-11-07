@@ -10,8 +10,8 @@ import math
 
 import pytest
 
-from autocad_mcp.config import IPC_TIMEOUT
-from autocad_mcp.probes import (
+from autocad_lt_mcp.config import IPC_TIMEOUT
+from autocad_lt_mcp.probes import (
     DEFAULT_MAX_ENTITIES,
     EMPTY,
     OCCUPIED,

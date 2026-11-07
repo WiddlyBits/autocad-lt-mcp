@@ -1,8 +1,8 @@
-# autocad-mcp tool surface — what the schemas don't say
+# autocad-lt-mcp tool surface — what the schemas don't say
 
-Each client prefixes the tool names its own way: `mcp__autocad-mcp__<name>` in Claude Code,
-`mcp__autocad_mcp__<name>` in Codex CLI, and through `call_mcp_tool` with
-`ServerName: "autocad-mcp"` in Antigravity CLI. Each tool's description
+Each client prefixes the tool names its own way: `mcp__autocad-lt-mcp__<name>` in Claude Code,
+`mcp__autocad_lt_mcp__<name>` in Codex CLI, and through `call_mcp_tool` with
+`ServerName: "autocad-lt-mcp"` in Antigravity CLI. Each tool's description
 lists its operations and parameters. Read it before the first call in a client that hides the schema:
 only `operation`, `x1`, `y1`, `x2`, `y2`, `points`, `layer` and `entity_id` sit outside `data`.
 This file holds only what those don't:

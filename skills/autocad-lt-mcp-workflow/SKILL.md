@@ -1,16 +1,16 @@
 ---
-name: autocad-mcp-workflow
+name: autocad-lt-mcp-workflow
 description: >-
   Align text, batch LISP, DXF probe, selection handoff, screenshot planning, or
-  troubleshoot autocad-mcp (MCP tools system, drawing, entity, layer, view,
-  block, annotation; Claude names them mcp__autocad-mcp__system and so on). Load before
-  any autocad-mcp tool call
+  troubleshoot autocad-lt-mcp (MCP tools system, drawing, entity, layer, view,
+  block, annotation; Claude names them mcp__autocad-lt-mcp__system and so on). Load before
+  any autocad-lt-mcp tool call
   and whenever the user refers to a selection ("the lines I have selected", "move these
   circles", "duplicate these labels") — read the live selection with (mcp:sel-dump) first;
   Rule 1 covers the HS fallback.
 ---
 
-# Working in AutoCAD LT via autocad-mcp
+# Working in AutoCAD LT via autocad-lt-mcp
 
 **Every `execute_lisp` is one API request that re-reads the whole current context.** Round-trip
 count is the cost that dominates this workflow, not screenshots. Each rule below exists to remove
@@ -84,7 +84,7 @@ matched 0 of 152 labels.
 
 ## Rule 2: name the document and the space on every edit
 
-**autocad-mcp routes to whatever window holds UI focus**, not the one you meant, and
+**autocad-lt-mcp routes to whatever window holds UI focus**, not the one you meant, and
 `vla-Add`/`vla-Open` do not reliably move focus even when `vla-get-ActiveDocument` says they
 did. `mcp:guard` makes the wrong-document edit impossible rather than merely checked-for: pass
 the document suffix (`"DI-02"`) and the tab (`"Model"` or a layout name) and the verb refuses
@@ -144,7 +144,7 @@ second undo removed the edit. Check the entity by handle, not `extents`, which a
 shrink. Never reverse a move by moving back: a re-move with a slightly different
 offset leaves a drawing that is not the one you started with.
 
-**Load the `autocad-save-verification` skill before any save, SAVEAS, `plot_pdf`, DXF export,
+**Load the `autocad-lt-save-verification` skill before any save, SAVEAS, `plot_pdf`, DXF export,
 or new drawing from a `.dwt`.** Those writes can report ok and still not land.
 
 ## Rule 3: climb the capture ladder
@@ -162,7 +162,7 @@ genuinely cannot answer.
 | L1 | `(mcp:sel-dump)`, `entity(get)` | what is selected; where is it; what does it say | ~100–400 tok |
 | L2 | `(mcp:bbox-by-layer-in "Model")` | what occupies which region | ~200–600 tok |
 | L3 | `(mcp:grid-map-in 24 16 "Model")` | does the layout read correctly, coarse | ~300–800 tok |
-| L3b | `drawing(save_as_dxf)` + `python -m autocad_mcp.probe_dxf` | anything exactly, incl. all text | **~0 tok** |
+| L3b | `drawing(save_as_dxf)` + `python -m autocad_lt_mcp.probe_dxf` | anything exactly, incl. all text | **~0 tok** |
 | L4 | `view(get_screenshot, region=[l,t,r,b])` | this specific detail, visually | ~270 tok |
 | L4 | `view(get_screenshot, grid=true)` | where to crop, when no coordinates are known | ~260–360 tok, by window shape |
 | L5 | `view(get_screenshot)` full window | overall read, match-to-reference-photo | 1,334–1,886 tok @1280, by window shape |
@@ -175,10 +175,10 @@ alignment, so it can't prove an arc or a centered label: read raw `entget` group
 so only the answer enters the conversation. Run from your clone of this repo under `uv run`:
 
 ```
-python -m autocad_mcp.probe_dxf out.dxf                 # the grid snapshot
-python -m autocad_mcp.probe_dxf out.dxf --text          # every string, with layer and point
-python -m autocad_mcp.probe_dxf out.dxf --spaces        # the layout names
-python -m autocad_mcp.probe_dxf out.dxf --text --space Layout1 --layer TITLE
+python -m autocad_lt_mcp.probe_dxf out.dxf                 # the grid snapshot
+python -m autocad_lt_mcp.probe_dxf out.dxf --text          # every string, with layer and point
+python -m autocad_lt_mcp.probe_dxf out.dxf --spaces        # the layout names
+python -m autocad_lt_mcp.probe_dxf out.dxf --text --space Layout1 --layer TITLE
                                     # title-block read-back: handle, height, MTEXT width + attach
 ```
 
@@ -243,7 +243,7 @@ mutating call blindly** — check state first; a blind retry can double-apply.
 
 ## References
 
-- `autocad-save-verification` (sibling skill) — which save verb to reach for, how each one
+- `autocad-lt-save-verification` (sibling skill) — which save verb to reach for, how each one
   fails silently, and what counts as proof that a write landed
 - `references/troubleshooting.md` — symptoms, error payloads, retry rules
 - `references/tool-reference.md` — what the tool schemas don't say, `mcp_select.lsp`'s API,

@@ -17,9 +17,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from autocad_mcp.backends.base import AutoCADBackend, CommandResult
-from autocad_mcp.backends.file_ipc import FileIPCBackend
-from autocad_mcp.config import LISP_DIR
+from autocad_lt_mcp.backends.base import AutoCADBackend, CommandResult
+from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
+from autocad_lt_mcp.config import LISP_DIR
 
 
 @pytest.fixture

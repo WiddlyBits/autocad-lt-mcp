@@ -709,7 +709,7 @@
    DWGPREFIX is reported next to DWGNAME because the question this actually
    answers is not \"what is it called\" but \"which file am I about to write
    over\", and two drawings with the same name in different folders is the
-   ordinary case, not the exotic one. autocad-mcp routes to whatever window
+   ordinary case, not the exotic one. autocad-lt-mcp routes to whatever window
    holds UI focus, so the answer is not necessarily the document the caller
    had in mind.
 

@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from autocad_mcp.backends.base import BackendCapabilities, CommandResult
+from autocad_lt_mcp.backends.base import BackendCapabilities, CommandResult
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +154,7 @@ class TestAtomicWrite:
     def test_write_then_rename(self):
         """Verify atomic write pattern: write to .tmp, then rename."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            final_path = Path(tmpdir) / "autocad_mcp_cmd_test123.json"
+            final_path = Path(tmpdir) / "autocad_lt_mcp_cmd_test123.json"
             tmp_path = final_path.with_suffix(".tmp")
 
             payload = {"request_id": "test123", "command": "ping", "params": {}}
@@ -177,8 +177,8 @@ class TestAtomicWrite:
             id1 = uuid.uuid4().hex[:12]
             id2 = uuid.uuid4().hex[:12]
 
-            f1 = Path(tmpdir) / f"autocad_mcp_cmd_{id1}.json"
-            f2 = Path(tmpdir) / f"autocad_mcp_cmd_{id2}.json"
+            f1 = Path(tmpdir) / f"autocad_lt_mcp_cmd_{id1}.json"
+            f2 = Path(tmpdir) / f"autocad_lt_mcp_cmd_{id2}.json"
 
             f1.write_text(json.dumps({"request_id": id1, "command": "a"}))
             f2.write_text(json.dumps({"request_id": id2, "command": "b"}))
@@ -203,19 +203,19 @@ class TestStaleCleanup:
             stale_threshold = 60.0
 
             # Create a "stale" file
-            stale_file = Path(tmpdir) / "autocad_mcp_cmd_old123.json"
+            stale_file = Path(tmpdir) / "autocad_lt_mcp_cmd_old123.json"
             stale_file.write_text('{"old": true}')
             # Backdate the file
             old_time = time.time() - stale_threshold - 10
             os.utime(stale_file, (old_time, old_time))
 
             # Create a "fresh" file
-            fresh_file = Path(tmpdir) / "autocad_mcp_result_new456.json"
+            fresh_file = Path(tmpdir) / "autocad_lt_mcp_result_new456.json"
             fresh_file.write_text('{"new": true}')
 
             # Simulate cleanup
             now = time.time()
-            for f in Path(tmpdir).glob("autocad_mcp_*.json"):
+            for f in Path(tmpdir).glob("autocad_lt_mcp_*.json"):
                 if now - f.stat().st_mtime > stale_threshold:
                     f.unlink(missing_ok=True)
 
@@ -225,12 +225,12 @@ class TestStaleCleanup:
     def test_cleanup_tmp_files(self):
         """All .tmp files should be cleaned up."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            tmp1 = Path(tmpdir) / "autocad_mcp_cmd_abc.tmp"
-            tmp2 = Path(tmpdir) / "autocad_mcp_result_def.tmp"
+            tmp1 = Path(tmpdir) / "autocad_lt_mcp_cmd_abc.tmp"
+            tmp2 = Path(tmpdir) / "autocad_lt_mcp_result_def.tmp"
             tmp1.write_text("partial write")
             tmp2.write_text("partial write")
 
-            for f in Path(tmpdir).glob("autocad_mcp_*.tmp"):
+            for f in Path(tmpdir).glob("autocad_lt_mcp_*.tmp"):
                 f.unlink(missing_ok=True)
 
             assert not tmp1.exists()
@@ -396,14 +396,14 @@ class TestDispatchMapCoverage:
 
 class TestConfigurableTimeout:
     def test_default_timeout(self):
-        from autocad_mcp.config import IPC_TIMEOUT
+        from autocad_lt_mcp.config import IPC_TIMEOUT
         # Default should be 10.0 (unless overridden by env)
         assert isinstance(IPC_TIMEOUT, float)
         assert 1.0 <= IPC_TIMEOUT <= 300.0
 
     def test_timeout_used_by_file_ipc(self):
-        from autocad_mcp.backends.file_ipc import TIMEOUT
-        from autocad_mcp.config import IPC_TIMEOUT
+        from autocad_lt_mcp.backends.file_ipc import TIMEOUT
+        from autocad_lt_mcp.config import IPC_TIMEOUT
         assert TIMEOUT == IPC_TIMEOUT
 
 
@@ -418,17 +418,17 @@ class TestStaleLispCleanup:
         with tempfile.TemporaryDirectory() as tmpdir:
             stale_threshold = 60.0
 
-            stale_lsp = Path(tmpdir) / "autocad_mcp_lisp_old123.lsp"
+            stale_lsp = Path(tmpdir) / "autocad_lt_mcp_lisp_old123.lsp"
             stale_lsp.write_text("(+ 1 2)")
             old_time = time.time() - stale_threshold - 10
             os.utime(stale_lsp, (old_time, old_time))
 
-            fresh_lsp = Path(tmpdir) / "autocad_mcp_lisp_new456.lsp"
+            fresh_lsp = Path(tmpdir) / "autocad_lt_mcp_lisp_new456.lsp"
             fresh_lsp.write_text("(+ 3 4)")
 
             # Simulate the cleanup logic
             now = time.time()
-            for pattern in ("autocad_mcp_*.json", "autocad_mcp_*.tmp", "autocad_mcp_lisp_*.lsp"):
+            for pattern in ("autocad_lt_mcp_*.json", "autocad_lt_mcp_*.tmp", "autocad_lt_mcp_lisp_*.lsp"):
                 for f in Path(tmpdir).glob(pattern):
                     if now - f.stat().st_mtime > stale_threshold:
                         f.unlink(missing_ok=True)
@@ -447,9 +447,9 @@ class TestNewBackendDefaults:
 
     @pytest.mark.asyncio
     async def test_execute_lisp_default(self):
-        from autocad_mcp.backends.base import AutoCADBackend
+        from autocad_lt_mcp.backends.base import AutoCADBackend
         # Cannot instantiate ABC directly, use ezdxf backend instead
-        from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+        from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
         backend = EzdxfBackend()
         await backend.initialize()
         result = await backend.execute_lisp("(+ 1 2)")
@@ -458,7 +458,7 @@ class TestNewBackendDefaults:
 
     @pytest.mark.asyncio
     async def test_undo_default(self):
-        from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+        from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
         backend = EzdxfBackend()
         await backend.initialize()
         result = await backend.undo()
@@ -466,7 +466,7 @@ class TestNewBackendDefaults:
 
     @pytest.mark.asyncio
     async def test_redo_default(self):
-        from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+        from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
         backend = EzdxfBackend()
         await backend.initialize()
         result = await backend.redo()
@@ -475,7 +475,7 @@ class TestNewBackendDefaults:
     @pytest.mark.asyncio
     async def test_drawing_open_ezdxf(self):
         """ezdxf backend should support drawing_open for DXF files."""
-        from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+        from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
         backend = EzdxfBackend()
         await backend.initialize()
         # Save a DXF first, then open it
@@ -540,7 +540,7 @@ class TestStaleIpcDetection:
     """_check_stale_ipc_files detects leftover files from timed-out dispatches."""
 
     def _backend_with_tmpdir(self, tmpdir: str):
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         backend._ipc_dir = Path(tmpdir)
         return backend
@@ -552,7 +552,7 @@ class TestStaleIpcDetection:
 
     def test_stale_cmd_file_detected(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            stale = Path(tmpdir) / "autocad_mcp_cmd_abc123def456.json"
+            stale = Path(tmpdir) / "autocad_lt_mcp_cmd_abc123def456.json"
             stale.write_text('{"request_id": "abc123def456"}')
             _aged(stale)
             backend = self._backend_with_tmpdir(tmpdir)
@@ -562,7 +562,7 @@ class TestStaleIpcDetection:
 
     def test_stale_result_file_detected(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            stale = Path(tmpdir) / "autocad_mcp_result_deadbeef1234.json"
+            stale = Path(tmpdir) / "autocad_lt_mcp_result_deadbeef1234.json"
             stale.write_text('{"ok": true}')
             _aged(stale)
             backend = self._backend_with_tmpdir(tmpdir)
@@ -573,8 +573,8 @@ class TestStaleIpcDetection:
     def test_multiple_stale_files_detected(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             for name in (
-                "autocad_mcp_cmd_111111111111.json",
-                "autocad_mcp_result_222222222222.json",
+                "autocad_lt_mcp_cmd_111111111111.json",
+                "autocad_lt_mcp_result_222222222222.json",
             ):
                 (Path(tmpdir) / name).write_text("{}")
                 _aged(Path(tmpdir) / name)
@@ -583,21 +583,21 @@ class TestStaleIpcDetection:
 
     def test_fresh_file_is_another_servers_in_flight_request(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            (Path(tmpdir) / "autocad_mcp_cmd_111111111111.json").write_text("{}")
+            (Path(tmpdir) / "autocad_lt_mcp_cmd_111111111111.json").write_text("{}")
             backend = self._backend_with_tmpdir(tmpdir)
             assert backend._check_stale_ipc_files() == []
 
     def test_unrelated_files_ignored(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "some_other_file.json").write_text("{}")
-            (Path(tmpdir) / "autocad_mcp_lisp_abc123.lsp").write_text("(+ 1 2)")
+            (Path(tmpdir) / "autocad_lt_mcp_lisp_abc123.lsp").write_text("(+ 1 2)")
             _aged(Path(tmpdir) / "some_other_file.json")
-            _aged(Path(tmpdir) / "autocad_mcp_lisp_abc123.lsp")
+            _aged(Path(tmpdir) / "autocad_lt_mcp_lisp_abc123.lsp")
             backend = self._backend_with_tmpdir(tmpdir)
             assert backend._check_stale_ipc_files() == []
 
     def test_nonexistent_ipc_dir_returns_empty(self):
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         backend._ipc_dir = Path("C:/does/not/exist/at/all")
         assert backend._check_stale_ipc_files() == []
@@ -608,13 +608,13 @@ class TestConditionalEscInjection:
 
     def test_inject_esc_false_by_default(self):
         import inspect
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         sig = inspect.signature(FileIPCBackend._type_dispatch_trigger)
         assert sig.parameters["inject_esc"].default is False
 
     def test_inject_esc_parameter_exists(self):
         import inspect
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         sig = inspect.signature(FileIPCBackend._type_dispatch_trigger)
         assert "inject_esc" in sig.parameters
 
@@ -625,7 +625,7 @@ class TestAssertDoc:
     @pytest.mark.asyncio
     async def test_ok_response(self):
         from unittest.mock import patch, AsyncMock
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         with patch.object(backend, "execute_lisp", new_callable=AsyncMock) as mock_lisp:
             mock_lisp.return_value = CommandResult(ok=True, payload="OK")
@@ -636,7 +636,7 @@ class TestAssertDoc:
     @pytest.mark.asyncio
     async def test_wrong_doc_response(self):
         from unittest.mock import patch, AsyncMock
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         with patch.object(backend, "execute_lisp", new_callable=AsyncMock) as mock_lisp:
             mock_lisp.return_value = CommandResult(ok=True, payload='("WRONG-DOC" "Drawing1.dwg")')
@@ -649,7 +649,7 @@ class TestAssertDoc:
     @pytest.mark.asyncio
     async def test_lisp_error_propagated(self):
         from unittest.mock import patch, AsyncMock
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         with patch.object(backend, "execute_lisp", new_callable=AsyncMock) as mock_lisp:
             mock_lisp.return_value = CommandResult(
@@ -663,7 +663,7 @@ class TestAssertDoc:
     async def test_vlax_guard_propagated(self):
         """assert_doc doesn't use vlax-, but execute_lisp errors should pass through."""
         from unittest.mock import patch, AsyncMock
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         with patch.object(backend, "execute_lisp", new_callable=AsyncMock) as mock_lisp:
             mock_lisp.return_value = CommandResult(
@@ -675,7 +675,7 @@ class TestAssertDoc:
 
     @pytest.mark.asyncio
     async def test_base_backend_returns_not_supported(self):
-        from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+        from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
         backend = EzdxfBackend()
         await backend.initialize()
         result = await backend.assert_doc("any.dwg")
@@ -706,10 +706,10 @@ class TestStaleHwnd:
     """_reacquire_hwnd transparently recovers from a stale cached window handle."""
 
     def test_reacquire_updates_hwnd_when_window_found(self):
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         backend._hwnd = 0xDEAD
-        with patch("autocad_mcp.backends.file_ipc.find_autocad_window", return_value=0xBEEF):
+        with patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", return_value=0xBEEF):
             with patch.object(backend, "_find_command_line_hwnd", return_value=0xCAFE):
                 result = backend._reacquire_hwnd()
         assert result is True
@@ -717,10 +717,10 @@ class TestStaleHwnd:
         assert backend._command_hwnd == 0xCAFE
 
     def test_reacquire_returns_false_when_autocad_not_found(self):
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         backend._hwnd = 0xDEAD
-        with patch("autocad_mcp.backends.file_ipc.find_autocad_window", return_value=None):
+        with patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", return_value=None):
             result = backend._reacquire_hwnd()
         assert result is False
         assert backend._hwnd == 0xDEAD  # unchanged
@@ -728,7 +728,7 @@ class TestStaleHwnd:
     @pytest.mark.asyncio
     @pytest.mark.skipif(sys.platform != "win32", reason="requires pywin32")
     async def test_dispatch_reacquires_on_stale_hwnd_then_proceeds(self):
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         backend._hwnd = 0xDEAD
         dispatch_called = []
@@ -761,7 +761,7 @@ class TestStaleHwnd:
                                                 hex = fixed_id
                                             return FakeUUID()
 
-                                        result_path = Path(tmpdir) / f"autocad_mcp_result_{fixed_id}.json"
+                                        result_path = Path(tmpdir) / f"autocad_lt_mcp_result_{fixed_id}.json"
                                         result_path.write_text(
                                             json.dumps({"ok": True, "request_id": fixed_id})
                                         )
@@ -773,7 +773,7 @@ class TestStaleHwnd:
     @pytest.mark.asyncio
     @pytest.mark.skipif(sys.platform != "win32", reason="requires pywin32")
     async def test_dispatch_returns_autocad_not_found_when_reacquire_fails(self):
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         backend._hwnd = 0xDEAD
         with patch("sys.platform", "win32"):
@@ -791,7 +791,7 @@ class TestPreBatchDocCheck:
     @pytest.mark.asyncio
     async def test_dispatch_proceeds_when_doc_matches(self):
         """When expected_doc is given and assert_doc passes, the command is dispatched normally."""
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         ok_result = CommandResult(ok=True, payload={"doc": "target.dwg"})
         cmd_result = CommandResult(ok=True, payload={"entity_type": "LINE", "handle": "1A2"})
@@ -804,7 +804,7 @@ class TestPreBatchDocCheck:
     @pytest.mark.asyncio
     async def test_dispatch_rejected_when_doc_mismatches(self):
         """When expected_doc is given and assert_doc fails, the command is not sent."""
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         mismatch = CommandResult(
             ok=False,
@@ -822,7 +822,7 @@ class TestPreBatchDocCheck:
     @pytest.mark.asyncio
     async def test_dispatch_skips_check_when_expected_doc_is_none(self):
         """When expected_doc is None, assert_doc is never called."""
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         cmd_result = CommandResult(ok=True, payload="pong")
         with patch.object(backend, "assert_doc", new_callable=AsyncMock) as mock_assert:
@@ -833,7 +833,7 @@ class TestPreBatchDocCheck:
     @pytest.mark.asyncio
     async def test_execute_lisp_threads_expected_doc(self):
         """execute_lisp passes expected_doc through to _dispatch."""
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         ok_result = CommandResult(ok=True, payload={"doc": "target.dwg"})
         cmd_result = CommandResult(ok=True, payload='"done"')
@@ -847,7 +847,7 @@ class TestPreBatchDocCheck:
     @pytest.mark.asyncio
     async def test_execute_lisp_dispatches_vlax_on_lt(self):
         """vlax- code on LT is dispatched, not refused (live-verified 2026-10-08)."""
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
         backend = FileIPCBackend()
         backend.is_lt = True
         cmd_result = CommandResult(ok=True, payload="Drawing1.dwg")

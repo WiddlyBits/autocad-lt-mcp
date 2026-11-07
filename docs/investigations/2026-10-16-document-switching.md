@@ -4,7 +4,7 @@
 
 ## Problem
 
-autocad-mcp talks to AutoCAD LT by writing a command file and typing a fixed trigger into
+autocad-lt-mcp talks to AutoCAD LT by writing a command file and typing a fixed trigger into
 the command line of whichever drawing is active. Every edit therefore lands in the *active*
 document, and the server had no way to change which document that was:
 
@@ -69,7 +69,7 @@ active document; only `DWGNAME`, read through the dispatcher in the newly active
 shows that AutoCAD's document manager followed.
 
 `system(operation="switch_doc", data={"dwg": "B.dwg"})` in
-[`doc_switch.py`](../../src/autocad_mcp/doc_switch.py) productionizes it:
+[`doc_switch.py`](../../src/autocad_lt_mcp/doc_switch.py) productionizes it:
 
 1. Find the frame by window class plus an `MDIClient` child — not by a `.dwg` title, which
    the frame lacks while Start is in front.
@@ -89,7 +89,7 @@ While Start was active, a call that re-initialized the backend came back
 `entity_count: 0`, `save_path: null`. The server had silently switched from driving AutoCAD
 to editing an empty in-memory drawing.
 
-Cause, in [`config.py`](../../src/autocad_mcp/config.py): with `AUTOCAD_MCP_BACKEND=auto`,
+Cause, in [`config.py`](../../src/autocad_lt_mcp/config.py): with `AUTOCAD_MCP_BACKEND=auto`,
 detection looks for a window whose title contains `.dwg` or `Drawing`. With Start in front
 the frame title has neither, so detection concluded "no AutoCAD" and chose the headless
 backend. Any re-detection (`system(init)`, a server respawn) in that state flipped it.

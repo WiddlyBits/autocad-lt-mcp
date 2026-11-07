@@ -35,7 +35,7 @@ def test_first_tool_calls_answer_with_stdin_open():
     # The env var keeps the server off the file_ipc path, which posts keystrokes to an open AutoCAD.
     env = {**os.environ, "AUTOCAD_MCP_BACKEND": "ezdxf"}
     proc = subprocess.Popen(
-        [sys.executable, "-m", "autocad_mcp"],
+        [sys.executable, "-m", "autocad_lt_mcp"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,

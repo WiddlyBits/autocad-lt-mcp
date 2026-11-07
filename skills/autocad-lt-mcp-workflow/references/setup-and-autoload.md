@@ -1,7 +1,7 @@
 # Setup, autoload, and MCP server registration
 
 Environment this was verified against: AutoCAD LT 2027 (release R33), Windows,
-autocad-mcp using the `file_ipc` backend.
+autocad-lt-mcp using the `file_ipc` backend.
 
 ## Getting mcp_dispatch.lsp to load automatically
 
@@ -79,4 +79,4 @@ code you were trying to replace is worse than no validation run.
 
 `claude mcp add` in PowerShell with an npm install: call `claude.cmd`, not bare `claude`, because the
 `claude.ps1` shim loses the `--`. Use `-s user` scope and `-e AUTOCAD_MCP_BACKEND=auto`, with
-`<repo>\.venv\Scripts\python.exe -m autocad_mcp` after `--`.
+`<repo>\.venv\Scripts\python.exe -m autocad_lt_mcp` after `--`.

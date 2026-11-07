@@ -22,7 +22,7 @@ import asyncio
 import ntpath
 import sys
 
-from autocad_mcp.backends.base import CommandResult
+from autocad_lt_mcp.backends.base import CommandResult
 
 WM_MDIACTIVATE = 0x0222
 WM_MDIGETACTIVE = 0x0229

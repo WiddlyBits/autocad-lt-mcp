@@ -157,7 +157,7 @@ class TestResidency:
     def test_an_early_image_costs_more_than_a_late_one(self, tmp_path):
         """Same image, same entry price, different bill."""
         records = [
-            _assistant("req_1", 100, [_tool_use("t1", "mcp__autocad-mcp__view",
+            _assistant("req_1", 100, [_tool_use("t1", "mcp__autocad-lt-mcp__view",
                                                 operation="get_screenshot")]),
             _tool_result("t1", [_image_block(280, 280)]),
         ]
@@ -166,7 +166,7 @@ class TestResidency:
             for i in range(8)
         ]
         records += [
-            _assistant("req_late", 100, [_tool_use("t2", "mcp__autocad-mcp__view",
+            _assistant("req_late", 100, [_tool_use("t2", "mcp__autocad-lt-mcp__view",
                                                    operation="get_screenshot")]),
             _tool_result("t2", [_image_block(280, 280)]),
         ]
@@ -179,7 +179,7 @@ class TestResidency:
 
     def test_resident_cost_is_entry_cost_times_later_requests(self, tmp_path):
         records = [
-            _assistant("req_1", 100, [_tool_use("t1", "mcp__autocad-mcp__view",
+            _assistant("req_1", 100, [_tool_use("t1", "mcp__autocad-lt-mcp__view",
                                                 operation="get_screenshot")]),
             _tool_result("t1", [_image_block(280, 280)]),
             _assistant("req_2", 100, [{"type": "text", "text": "x"}]),
@@ -201,9 +201,9 @@ class TestLadderCompliance:
         path = _write(
             tmp_path,
             [
-                _assistant("r1", 10, [_tool_use("t1", "mcp__autocad-mcp__drawing",
+                _assistant("r1", 10, [_tool_use("t1", "mcp__autocad-lt-mcp__drawing",
                                                 operation="info")]),
-                _assistant("r2", 10, [_tool_use("t2", "mcp__autocad-mcp__view",
+                _assistant("r2", 10, [_tool_use("t2", "mcp__autocad-lt-mcp__view",
                                                 operation="get_screenshot")]),
             ],
         )
@@ -219,10 +219,10 @@ class TestLadderCompliance:
         path = _write(
             tmp_path,
             [
-                _assistant("r0", 10, [_tool_use("t0", "mcp__autocad-mcp__drawing",
+                _assistant("r0", 10, [_tool_use("t0", "mcp__autocad-lt-mcp__drawing",
                                                 operation="info")]),
                 *filler,
-                _assistant("rs", 10, [_tool_use("ts", "mcp__autocad-mcp__view",
+                _assistant("rs", 10, [_tool_use("ts", "mcp__autocad-lt-mcp__view",
                                                 operation="get_screenshot")]),
             ],
         )
@@ -233,7 +233,7 @@ class TestLadderCompliance:
         path = _write(
             tmp_path,
             [
-                _assistant("r1", 10, [_tool_use("t1", "mcp__autocad-mcp__entity",
+                _assistant("r1", 10, [_tool_use("t1", "mcp__autocad-lt-mcp__entity",
                                                 operation="create_line",
                                                 include_screenshot=True)]),
             ],

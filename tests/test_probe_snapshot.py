@@ -6,7 +6,7 @@ text, and an unintended change to any of it fails here with a readable diff
 instead of being noticed three edits later in a screenshot.
 
 The fixtures are also the contract between the two layers. mcp_probes.lsp is a
-transcription of autocad_mcp/probes.py, and the way to prove the transcription
+transcription of autocad_lt_mcp/probes.py, and the way to prove the transcription
 is faithful is to run mcp:snapshot on the same drawing in AutoCAD and diff its
 output against the file this test guards.
 """
@@ -17,8 +17,8 @@ from pathlib import Path
 import ezdxf
 import pytest
 
-from autocad_mcp import probe_dxf
-from autocad_mcp.probe_dxf import snapshot_doc, snapshot_file
+from autocad_lt_mcp import probe_dxf
+from autocad_lt_mcp.probe_dxf import snapshot_doc, snapshot_file
 from tests.generate_golden import (
     GOLDEN_DIR,
     REBASELINE_ENV,
@@ -408,7 +408,7 @@ class TestHeavyPolylineReference:
     """The Python side of mcp:ent-bbox-data for an old-style POLYLINE."""
 
     def test_box_comes_from_vertices_and_a_null_cannot_corrupt_the_union(self):
-        from autocad_mcp.probes import BBox, bbox_union, entity_bbox
+        from autocad_lt_mcp.probes import BBox, bbox_union, entity_bbox
 
         doc = ezdxf.new()
         msp = doc.modelspace()

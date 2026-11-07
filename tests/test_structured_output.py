@@ -18,7 +18,7 @@ These tests pin the opt-out in place. If someone adds a ninth tool and forgets
 
 import pytest
 
-from autocad_mcp.server import mcp
+from autocad_lt_mcp.server import mcp
 
 EXPECTED_TOOL_COUNT = 7
 

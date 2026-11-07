@@ -2,7 +2,7 @@
 
 execute_lisp exists only on the file_ipc backend, so nothing in these files can
 be run without AutoCAD in front of it. That is precisely why the probe
-arithmetic lives in src/autocad_mcp/probes.py and is tested there; this file
+arithmetic lives in src/autocad_lt_mcp/probes.py and is tested there; this file
 covers the class of mistake that a Python reference cannot catch, namely a .lsp
 that will not parse or that has drifted out of step with its reference.
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from autocad_mcp.probes import (
+from autocad_lt_mcp.probes import (
     DEFAULT_MAX_ENTITIES,
     DEFAULT_MAX_PROBES,
     NOMINAL_CHAR_WIDTH,
@@ -199,7 +199,7 @@ class TestTunablesMatchTheReference:
         assert f"(setq *mcp-nominal-char-width* {NOMINAL_CHAR_WIDTH})" in source(PROBES_LSP)
 
     def test_time_budget_stays_under_the_ipc_timeout(self):
-        from autocad_mcp.config import IPC_TIMEOUT
+        from autocad_lt_mcp.config import IPC_TIMEOUT
 
         assert PROBE_TIME_BUDGET_MS < IPC_TIMEOUT * 1000
 

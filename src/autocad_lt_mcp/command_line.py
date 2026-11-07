@@ -21,7 +21,7 @@ import json
 import re
 import sys
 
-from autocad_mcp.backends.base import CommandResult
+from autocad_lt_mcp.backends.base import CommandResult
 
 DEFAULT_LINES = 10
 MAX_LINES = 200
@@ -144,7 +144,7 @@ async def read_command_line(hwnd: int | None, n: int = DEFAULT_LINES) -> Command
     except (ValueError, AttributeError) as exc:
         return CommandResult(ok=False, error=f"command_line_unparsable: {exc}")
     payload["document"] = window_document(hwnd)
-    from autocad_mcp.backends.file_ipc import multi_window_warning
+    from autocad_lt_mcp.backends.file_ipc import multi_window_warning
 
     warning = multi_window_warning(hwnd)
     if warning:

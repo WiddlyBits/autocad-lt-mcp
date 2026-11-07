@@ -1,7 +1,7 @@
 # File-IPC error model and retry policy
 
 Developer reference. The agent-facing summary (payload signatures and what to do) lives in
-`skills/autocad-mcp-workflow/references/troubleshooting.md`; keep the two consistent.
+`skills/autocad-lt-mcp-workflow/references/troubleshooting.md`; keep the two consistent.
 
 ## IPC protocol overview
 

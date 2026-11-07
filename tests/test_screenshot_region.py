@@ -13,8 +13,8 @@ import ezdxf
 import pytest
 from PIL import Image
 
-from autocad_mcp.config import SCREENSHOT_MAX_DIMENSION_RANGE
-from autocad_mcp.screenshot import (
+from autocad_lt_mcp.config import SCREENSHOT_MAX_DIMENSION_RANGE
+from autocad_lt_mcp.screenshot import (
     MatplotlibScreenshotProvider,
     _resize_and_encode,
     crop_to_region,
@@ -175,7 +175,7 @@ def _image_blocks(result):
 
 class TestViewScreenshotTool:
     async def test_attaches_image_and_reports_cost(self):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         result = await mcp.call_tool("view", {"operation": "get_screenshot"})
         payload = _text_of(result)
@@ -185,7 +185,7 @@ class TestViewScreenshotTool:
         assert len(_image_blocks(result)) == 1
 
     async def test_save_to_writes_file_and_attaches_nothing(self, tmp_path):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         target = tmp_path / "nested" / "shot.png"
         result = await mcp.call_tool(
@@ -202,8 +202,8 @@ class TestViewScreenshotTool:
 
     async def test_only_text_suppresses_the_image_but_still_reports_cost(self, monkeypatch):
         """view(get_screenshot) must honour the kill switch, not just include_screenshot."""
-        from autocad_mcp import config
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp import config
+        from autocad_lt_mcp.server import mcp
 
         monkeypatch.setattr(config, "ONLY_TEXT_FEEDBACK", True)
         result = await mcp.call_tool("view", {"operation": "get_screenshot"})
@@ -215,8 +215,8 @@ class TestViewScreenshotTool:
 
     async def test_save_to_still_works_under_only_text(self, monkeypatch, tmp_path):
         """Writing to disk costs no context, so the kill switch should not block it."""
-        from autocad_mcp import config
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp import config
+        from autocad_lt_mcp.server import mcp
 
         monkeypatch.setattr(config, "ONLY_TEXT_FEEDBACK", True)
         target = tmp_path / "shot.png"
@@ -229,7 +229,7 @@ class TestViewScreenshotTool:
 
     async def test_oversized_max_dimension_is_clamped(self):
         """An unclamped argument buys resolution the vision API discards."""
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         result = await mcp.call_tool(
             "view", {"operation": "get_screenshot", "max_dimension": 8000}
@@ -239,7 +239,7 @@ class TestViewScreenshotTool:
         assert max(payload["width"], payload["height"]) <= SCREENSHOT_MAX_DIMENSION_RANGE[1]
 
     async def test_region_reduces_cost(self):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         full = _text_of(await mcp.call_tool("view", {"operation": "get_screenshot"}))
         cropped = _text_of(
@@ -253,7 +253,7 @@ class TestViewScreenshotTool:
 
     @pytest.mark.parametrize("region", [[1, 2, 3], [1, 2, 3, 4, 5]])
     async def test_malformed_region_is_rejected_clearly(self, region):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         result = await mcp.call_tool(
             "view", {"operation": "get_screenshot", "region": region}
@@ -261,7 +261,7 @@ class TestViewScreenshotTool:
         assert "region must be 4 integers" in _text_of(result)["error"]
 
     async def test_degenerate_region_reports_the_reason(self):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         result = await mcp.call_tool(
             "view", {"operation": "get_screenshot", "region": [900, 900, 100, 100]}
@@ -289,7 +289,7 @@ def _is_red(px):
 
 class TestGridPreview:
     def test_caps_to_preview_size(self):
-        from autocad_mcp.screenshot import GRID_PREVIEW_DIMENSION
+        from autocad_lt_mcp.screenshot import GRID_PREVIEW_DIMENSION
 
         out = _resize_and_encode(Image.new("RGB", (4000, 3000), "white"), 1280, None, grid=True)
         assert max(out["width"], out["height"]) == GRID_PREVIEW_DIMENSION
@@ -316,14 +316,14 @@ class TestGridPreview:
 
 class TestDwgBboxToPx:
     def test_view_centre_maps_to_canvas_centre(self):
-        from autocad_mcp.screenshot import dwg_bbox_to_px
+        from autocad_lt_mcp.screenshot import dwg_bbox_to_px
 
         # 1000 units tall on a 2000x1000 canvas -> 1 px per unit.
         px = dwg_bbox_to_px((-10, -10, 10, 10), (0, 0), 1000, (2000, 1000), (9, 137))
         assert px == (9 + 990, 137 + 490, 9 + 1010, 137 + 510)
 
     def test_y_axis_flips_and_corners_may_come_in_any_order(self):
-        from autocad_mcp.screenshot import dwg_bbox_to_px
+        from autocad_lt_mcp.screenshot import dwg_bbox_to_px
 
         # 2 px per unit; box above-right of centre lands above-right on screen.
         a = dwg_bbox_to_px((100, 50, 200, 100), (0, 0), 500, (2000, 1000), (0, 0))
@@ -331,7 +331,7 @@ class TestDwgBboxToPx:
         assert a == b == (1200, 300, 1400, 400)
 
     def test_fractional_edges_round_outward(self):
-        from autocad_mcp.screenshot import dwg_bbox_to_px
+        from autocad_lt_mcp.screenshot import dwg_bbox_to_px
 
         assert dwg_bbox_to_px((0.25, 0.25, 0.75, 0.75), (0, 0), 1000, (1000, 1000), (0, 0)) == (
             500, 499, 501, 500,
@@ -340,13 +340,13 @@ class TestDwgBboxToPx:
 
 class TestViewGridAndDwgRegion:
     async def test_grid_flag_returns_cheap_preview(self):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         payload = _text_of(await mcp.call_tool("view", {"operation": "get_screenshot", "grid": True}))
         assert payload["est_tokens"] <= 400  # 560x560 worst case
 
     async def test_region_dwg_refused_without_autocad_backend(self):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         payload = _text_of(
             await mcp.call_tool(
@@ -356,7 +356,7 @@ class TestViewGridAndDwgRegion:
         assert "file_ipc" in payload["error"]
 
     async def test_bad_region_string_is_rejected(self):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         payload = _text_of(
             await mcp.call_tool("view", {"operation": "get_screenshot", "region": "ribbon"})
@@ -370,8 +370,8 @@ class TestFileIpcDwgRegion:
     def _backend(self, lisp_payload, canvas):
         from types import SimpleNamespace
 
-        from autocad_mcp.backends.base import CommandResult
-        from autocad_mcp.backends.file_ipc import FileIPCBackend
+        from autocad_lt_mcp.backends.base import CommandResult
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
 
         b = object.__new__(FileIPCBackend)
         b._screenshot_provider = SimpleNamespace(canvas_rect=lambda: canvas)
@@ -412,7 +412,7 @@ class TestFileIpcDwgRegion:
 
 class TestChangedBbox:
     def test_padded_box_around_the_changed_pixels(self):
-        from autocad_mcp.screenshot import changed_bbox
+        from autocad_lt_mcp.screenshot import changed_bbox
 
         a = Image.new("RGB", (1000, 800), "white")
         b = a.copy()
@@ -420,13 +420,13 @@ class TestChangedBbox:
         assert changed_bbox(a, b, pad=10) == (290, 190, 360, 250)
 
     def test_identical_images_give_none(self):
-        from autocad_mcp.screenshot import changed_bbox
+        from autocad_lt_mcp.screenshot import changed_bbox
 
         a = Image.new("RGB", (100, 100), "white")
         assert changed_bbox(a, a.copy()) is None
 
     def test_change_outside_within_is_ignored_and_offset_applies(self):
-        from autocad_mcp.screenshot import changed_bbox
+        from autocad_lt_mcp.screenshot import changed_bbox
 
         a = Image.new("RGB", (1000, 800), "white")
         b = a.copy()
@@ -435,14 +435,14 @@ class TestChangedBbox:
         assert changed_bbox(a, b, within=(0, 100, 1000, 700), pad=0) == (500, 300, 510, 310)
 
     def test_antialias_noise_below_threshold_is_ignored(self):
-        from autocad_mcp.screenshot import changed_bbox
+        from autocad_lt_mcp.screenshot import changed_bbox
 
         a = Image.new("RGB", (100, 100), (200, 200, 200))
         b = Image.new("RGB", (100, 100), (205, 205, 205))
         assert changed_bbox(a, b) is None
 
     def test_pad_clamps_to_the_image(self):
-        from autocad_mcp.screenshot import changed_bbox
+        from autocad_lt_mcp.screenshot import changed_bbox
 
         a = Image.new("RGB", (100, 100), "white")
         b = a.copy()
@@ -454,7 +454,7 @@ class TestChangedBbox:
             _resize_and_encode(Image.new("RGB", (100, 100)), None, None, region="changed")
 
     async def test_view_accepts_changed(self):
-        from autocad_mcp.server import mcp
+        from autocad_lt_mcp.server import mcp
 
         payload = _text_of(
             await mcp.call_tool("view", {"operation": "get_screenshot", "region": "changed"})
@@ -467,7 +467,7 @@ class TestMinimizedGuard:
     def test_minimized_window_is_refused_not_captured(self, monkeypatch):
         import win32gui
 
-        from autocad_mcp.screenshot import Win32ScreenshotProvider
+        from autocad_lt_mcp.screenshot import Win32ScreenshotProvider
 
         monkeypatch.setattr(win32gui, "IsIconic", lambda h: True)
         with pytest.raises(ValueError, match="minimized"):

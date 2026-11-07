@@ -27,7 +27,7 @@ def _lsp_with_mtime(tmp_path: Path, dt: datetime) -> Path:
 def _freshness(tmp_path, loaded, file_dt):
     backend = _backend(tmp_path, 2)
     backend._dispatcher_loaded = loaded
-    with patch("autocad_mcp.backends.file_ipc.LISP_DIR", _lsp_with_mtime(tmp_path, file_dt)):
+    with patch("autocad_lt_mcp.backends.file_ipc.LISP_DIR", _lsp_with_mtime(tmp_path, file_dt)):
         return backend.dispatcher_freshness()
 
 
@@ -56,7 +56,7 @@ class TestFreshness:
     def test_unreadable_file_is_unknown(self, tmp_path):
         backend = _backend(tmp_path, 2)
         backend._dispatcher_loaded = _julian(datetime(2026, 10, 14, 12))
-        with patch("autocad_mcp.backends.file_ipc.LISP_DIR", tmp_path / "missing"):
+        with patch("autocad_lt_mcp.backends.file_ipc.LISP_DIR", tmp_path / "missing"):
             assert backend.dispatcher_freshness()["stale"] is None
 
     def test_status_carries_the_block(self, tmp_path):
@@ -71,13 +71,13 @@ class TestMultiWindow:
     TWO = [(330688, "Autodesk AutoCAD LT 2027 - [Drawing2.dwg]"), (197062, "Autodesk AutoCAD LT 2027 - [Drawing1.dwg]")]
 
     def test_one_window_is_silent(self):
-        from autocad_mcp.backends import file_ipc
+        from autocad_lt_mcp.backends import file_ipc
 
         with patch.object(file_ipc, "list_autocad_windows", return_value=self.TWO[:1]):
             assert file_ipc.multi_window_warning(330688) is None
 
     def test_two_windows_name_the_one_in_use(self):
-        from autocad_mcp.backends import file_ipc
+        from autocad_lt_mcp.backends import file_ipc
 
         with patch.object(file_ipc, "list_autocad_windows", return_value=self.TWO):
             w = file_ipc.multi_window_warning(197062)
@@ -85,7 +85,7 @@ class TestMultiWindow:
         assert len(w["windows"]) == 2
 
     def test_find_returns_the_front_window(self):
-        from autocad_mcp.backends import file_ipc
+        from autocad_lt_mcp.backends import file_ipc
 
         with patch.object(file_ipc, "list_autocad_windows", return_value=self.TWO):
             assert file_ipc.find_autocad_window() == 330688
@@ -94,8 +94,8 @@ class TestMultiWindow:
         import asyncio
         import json
 
-        from autocad_mcp import command_line as cl
-        from autocad_mcp.backends import file_ipc
+        from autocad_lt_mcp import command_line as cl
+        from autocad_lt_mcp.backends import file_ipc
 
         class Proc:
             returncode = 0

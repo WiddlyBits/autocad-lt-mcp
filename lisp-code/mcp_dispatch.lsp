@@ -1,10 +1,10 @@
 ;;; mcp_dispatch.lsp — File-based IPC dispatcher for AutoCAD MCP v3.1
 ;;;
 ;;; Protocol:
-;;;   1. Python writes command JSON to C:/temp/autocad_mcp_cmd_{id}.json
+;;;   1. Python writes command JSON to C:/temp/autocad_lt_mcp_cmd_{id}.json
 ;;;   2. Python types "(c:mcp-dispatch)" + Enter
 ;;;   3. This function reads cmd, dispatches via command map, writes result JSON
-;;;   4. Python polls for C:/temp/autocad_mcp_result_{id}.json
+;;;   4. Python polls for C:/temp/autocad_lt_mcp_result_{id}.json
 ;;;
 ;;; SECURITY: No raw eval — dispatcher uses a command whitelist/map.
 ;;; Compatible with AutoCAD LT 2024+.
@@ -1800,7 +1800,7 @@
 (defun c:mcp-dispatch ( / cmd-files cmd-file json-text request-id cmd-name params-str result result-file)
   "Find pending command file, claim it, dispatch, write result."
   ;; Find first pending command file
-  (setq cmd-files (vl-directory-files *mcp-ipc-dir* "autocad_mcp_cmd_*.json" 1))
+  (setq cmd-files (vl-directory-files *mcp-ipc-dir* "autocad_lt_mcp_cmd_*.json" 1))
   (if (not cmd-files)
     (progn (princ "\nMCP: No pending commands") (princ))
     (progn
@@ -1808,7 +1808,7 @@
       ;; timeout path deletes cmd_<id>; if that delete succeeds the command was
       ;; never claimed and cannot have applied. A failed rename means Python
       ;; already withdrew it, so do nothing.
-      (setq cmd-file (strcat *mcp-ipc-dir* "autocad_mcp_run_" (substr (car cmd-files) 17)))
+      (setq cmd-file (strcat *mcp-ipc-dir* "autocad_lt_mcp_run_" (substr (car cmd-files) 20)))
       (setq json-text
         (if (vl-file-rename (strcat *mcp-ipc-dir* (car cmd-files)) cmd-file)
           (mcp-read-file-lines cmd-file)))
@@ -1839,7 +1839,7 @@
               )
 
               ;; Write result
-              (setq result-file (strcat *mcp-ipc-dir* "autocad_mcp_result_" request-id ".json"))
+              (setq result-file (strcat *mcp-ipc-dir* "autocad_lt_mcp_result_" request-id ".json"))
               (if (car result)
                 (mcp-write-result result-file request-id T (cdr result) nil)
                 (mcp-write-result result-file request-id nil nil (cdr result))

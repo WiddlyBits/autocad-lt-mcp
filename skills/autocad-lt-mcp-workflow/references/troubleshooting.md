@@ -62,4 +62,4 @@ Exact signatures — match these without re-reading the LSP files:
 | `entity(get)` returns `bad argument type: stringp nil` | the handle was erased and the document holds a `mcp_dispatch.lsp` from before 2026-10-08 | same as above; reopen the drawing so the Startup Suite loads the current dispatcher |
 | `entity(count)` on a layer you just "deleted" isn't zero, or a purge removes more/less than expected | `CLAYER` or a nested block definition | `activex-and-lisp-limits.md` |
 | A probe answers plausibly but with the behaviour you just fixed | old definitions still resident | `system(operation="init")` re-loads probes and select; `mcp_dispatch.lsp` needs APPLOAD or a restart |
-| The same write fails twice | something structural, not flakiness | stop; the `autocad-save-verification` skill's diagnosis order |
+| The same write fails twice | something structural, not flakiness | stop; the `autocad-lt-save-verification` skill's diagnosis order |

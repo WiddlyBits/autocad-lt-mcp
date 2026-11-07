@@ -6,8 +6,8 @@ import io
 import ezdxf
 import pytest
 
-from autocad_mcp.config import SCREENSHOT_MAX_DIMENSION
-from autocad_mcp.screenshot import MatplotlibScreenshotProvider, NullScreenshotProvider
+from autocad_lt_mcp.config import SCREENSHOT_MAX_DIMENSION
+from autocad_lt_mcp.screenshot import MatplotlibScreenshotProvider, NullScreenshotProvider
 
 
 def _png_size(b64_data: str) -> tuple[int, int]:

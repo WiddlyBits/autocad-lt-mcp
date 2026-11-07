@@ -179,7 +179,7 @@ convention, that's a deliberate feature, not clutter — ask before removing it.
 ## Duplicating a drawing
 
 OS copy, then ActiveX open — `(command "_.OPEN" path)` has failed silently (why: the
-`autocad-save-verification` skill). The source must be closed or saved clean first:
+`autocad-lt-save-verification` skill). The source must be closed or saved clean first:
 ```powershell
 Copy-Item "source.dwg" "destination.dwg"
 ```

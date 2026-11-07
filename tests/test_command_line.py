@@ -13,9 +13,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from autocad_mcp import command_line as cl
-from autocad_mcp.backends.base import AutoCADBackend, CommandResult
-from autocad_mcp.backends.file_ipc import FileIPCBackend
+from autocad_lt_mcp import command_line as cl
+from autocad_lt_mcp.backends.base import AutoCADBackend, CommandResult
+from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
 
 
 class TestParse:
@@ -112,7 +112,7 @@ class TestRead:
             lambda h: "Autodesk AutoCAD LT 2027  - [C:\jobs\Panel A.dwg]")})
         with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=P())), \
              patch.dict("sys.modules", {"win32gui": fake}), \
-             patch("autocad_mcp.backends.file_ipc.list_autocad_windows", return_value=[]):
+             patch("autocad_lt_mcp.backends.file_ipc.list_autocad_windows", return_value=[]):
             r = asyncio.run(cl.read_command_line(5, 1))
         assert r.payload["document"] == "Panel A.dwg"
 
@@ -131,7 +131,7 @@ class TestBackend:
         b._hwnd = 7
         b._dispatch = AsyncMock(side_effect=AssertionError("dispatcher used"))
         b.execute_lisp = AsyncMock(side_effect=AssertionError("dispatcher used"))
-        with patch("autocad_mcp.command_line.read_command_line",
+        with patch("autocad_lt_mcp.command_line.read_command_line",
                    AsyncMock(return_value=CommandResult(ok=True, payload={}))) as m:
             r = asyncio.run(b.command_line(3))
         assert r.ok
@@ -141,13 +141,13 @@ class TestBackend:
 class TestServerRoute:
     def test_fresh_server_never_inits_the_backend(self):
         # Backend init pings the dispatcher, which is refused while a command waits.
-        from autocad_mcp import client, server
+        from autocad_lt_mcp import client, server
 
         ok = CommandResult(ok=True, payload={"lines": [], "prompt": "p", "live": []})
         with patch.object(client, "_backend", None), \
              patch.object(server, "get_backend", AsyncMock(side_effect=AssertionError("init"))), \
-             patch("autocad_mcp.backends.file_ipc.find_autocad_window", return_value=7), \
-             patch("autocad_mcp.command_line.read_command_line", AsyncMock(return_value=ok)) as m:
+             patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", return_value=7), \
+             patch("autocad_lt_mcp.command_line.read_command_line", AsyncMock(return_value=ok)) as m:
             out = asyncio.run(server.system(operation="command_line", data={"n": 3}))
         m.assert_awaited_once_with(7, 3)
         assert '"prompt"' in out
@@ -178,7 +178,7 @@ class TestInitializeCommandActive:
     def _init(self, error):
         b = FileIPCBackend()
         b._dispatch = AsyncMock(return_value=CommandResult(ok=False, error=error))
-        with patch("autocad_mcp.backends.file_ipc.find_autocad_window", return_value=7),              patch.object(b, "_find_command_line_hwnd", return_value=None),              patch.object(b, "_cleanup_stale_files"):
+        with patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", return_value=7),              patch.object(b, "_find_command_line_hwnd", return_value=None),              patch.object(b, "_cleanup_stale_files"):
             return asyncio.run(b.initialize())
 
     def test_command_active_is_not_reported_as_not_loaded(self):

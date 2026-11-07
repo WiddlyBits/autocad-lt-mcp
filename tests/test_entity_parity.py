@@ -25,7 +25,7 @@ from pathlib import Path
 import ezdxf
 import pytest
 
-from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
 from tests.test_probes_lisp import _defun_body, strip_lisp
 
 DISPATCH_LSP = Path(__file__).parent.parent / "lisp-code" / "mcp_dispatch.lsp"

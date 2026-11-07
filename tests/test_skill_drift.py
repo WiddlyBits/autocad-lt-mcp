@@ -16,7 +16,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 LISP_DIR = ROOT / "lisp-code"
-SERVER = ROOT / "src" / "autocad_mcp" / "server.py"
+SERVER = ROOT / "src" / "autocad_lt_mcp" / "server.py"
 
 TOOLS = ("system", "drawing", "entity", "layer", "view", "block", "annotation", "pid")
 

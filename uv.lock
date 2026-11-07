@@ -48,7 +48,7 @@ wheels = [
 ]
 
 [[package]]
-name = "autocad-mcp"
+name = "autocad-lt-mcp"
 version = "3.3.0"
 source = { editable = "." }
 dependencies = [

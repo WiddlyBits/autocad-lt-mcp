@@ -8,15 +8,15 @@ from __future__ import annotations
 import structlog
 from mcp.server.fastmcp import FastMCP
 
-from autocad_mcp.client import (
+from autocad_lt_mcp.client import (
     _json,
     _safe,
     add_screenshot_if_available,
     get_backend,
 )
-from autocad_mcp import config
-from autocad_mcp.backends.base import CommandResult
-from autocad_mcp.config import SCREENSHOT_MAX_DIMENSION, SCREENSHOT_MAX_DIMENSION_RANGE
+from autocad_lt_mcp import config
+from autocad_lt_mcp.backends.base import CommandResult
+from autocad_lt_mcp.config import SCREENSHOT_MAX_DIMENSION, SCREENSHOT_MAX_DIMENSION_RANGE
 
 # FastMCP validates return types via Pydantic. Tools that may return
 # ImageContent (screenshot) alongside TextContent need a union return type.
@@ -43,7 +43,7 @@ ToolResult = str | list
 
 log = structlog.get_logger()
 
-mcp = FastMCP("autocad-mcp")
+mcp = FastMCP("autocad-lt-mcp")
 
 _NEEDS_ENTITY_ID = {"create_hatch", "get", "copy", "move", "rotate", "scale", "mirror", "offset", "array", "erase"}
 
@@ -729,7 +729,7 @@ async def system(
         )
     elif operation == "init":
         # Force re-initialization
-        from autocad_mcp import client
+        from autocad_lt_mcp import client
         client._backend = None
         backend = await get_backend()
         result = await backend.status()
@@ -751,9 +751,9 @@ async def system(
         # Not get_backend(): first init pings the dispatcher, and the ping is
         # refused while a command waits, so a fresh server could never read the
         # prompt it exists to read.
-        from autocad_mcp import client
-        from autocad_mcp.backends.file_ipc import find_autocad_window
-        from autocad_mcp.command_line import read_command_line
+        from autocad_lt_mcp import client
+        from autocad_lt_mcp.backends.file_ipc import find_autocad_window
+        from autocad_lt_mcp.command_line import read_command_line
 
         n = int(data.get("n", 10))
         if client._backend is not None:
@@ -764,8 +764,8 @@ async def system(
     elif operation == "switch_doc":
         # Not get_backend() first: with Start in front there is no backend to
         # get, and that is one of the states this exists to leave.
-        from autocad_mcp import client
-        from autocad_mcp.doc_switch import switch_doc
+        from autocad_lt_mcp import client
+        from autocad_lt_mcp.doc_switch import switch_doc
 
         moved = await switch_doc(data.get("dwg", ""))
         if not moved.ok:
@@ -827,7 +827,7 @@ def main():
 
     # Loading numpy's C extension while the stdin read is pending blocks until that read
     # returns, and the backend is only picked at the first tool call: import unconditionally.
-    import autocad_mcp.backends.ezdxf_backend  # noqa: F401
+    import autocad_lt_mcp.backends.ezdxf_backend  # noqa: F401
 
-    log.info("autocad_mcp_starting", version="3.1.0")
+    log.info("autocad_lt_mcp_starting", version="3.1.0")
     mcp.run(transport="stdio")

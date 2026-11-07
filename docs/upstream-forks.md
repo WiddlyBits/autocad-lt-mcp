@@ -1,6 +1,6 @@
 # Upstream and related forks
 
-Where autocad-mcp users report problems and share fixes. Collected 2026-09-16; re-check before
+Where users of `puran-water/autocad-mcp` and its forks report problems and share fixes. Collected 2026-09-16; re-check before
 relying on any entry.
 
 - **Upstream forum:** <https://github.com/orgs/puran-water/discussions> — the pinned discussion
@@ -14,5 +14,5 @@ relying on any entry.
 | `ks40-academy/autocad-mcp` | Thread-safe init, configurable IPC timeout |
 | `hvkshetry/autocad-mcp` | LT-focused, natural-language LISP generation, its own `execute_lisp` guard |
 
-- **No autocad-mcp Discord** was found (2026-09). Adjacent: the Autodesk Community AutoCAD LT
+- **No Discord for `puran-water/autocad-mcp`** was found (2026-09). Adjacent: the Autodesk Community AutoCAD LT
   forum (authoritative on LT LISP limits), CADTutor's AutoLISP forum, AUGI (entmakex threads).

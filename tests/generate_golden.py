@@ -119,7 +119,7 @@ def snapshot_path(stem: str) -> Path:
 
 def current_snapshot(stem: str) -> str:
     """What the probes make of the golden DXF right now."""
-    from autocad_mcp.probe_dxf import snapshot_file
+    from autocad_lt_mcp.probe_dxf import snapshot_file
 
     return snapshot_file(GOLDEN_DIR / f"{stem}.dxf")
 

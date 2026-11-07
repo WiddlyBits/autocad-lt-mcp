@@ -10,8 +10,8 @@ from typing import Any
 import structlog
 from mcp.types import ImageContent, TextContent
 
-from autocad_mcp.backends.base import AutoCADBackend, CommandResult
-from autocad_mcp.config import ONLY_TEXT_FEEDBACK, SCREENSHOT_MAX_DIMENSION, detect_backend
+from autocad_lt_mcp.backends.base import AutoCADBackend, CommandResult
+from autocad_lt_mcp.config import ONLY_TEXT_FEEDBACK, SCREENSHOT_MAX_DIMENSION, detect_backend
 
 log = structlog.get_logger()
 
@@ -44,7 +44,7 @@ async def get_backend() -> AutoCADBackend:
         backend_name = detect_backend()
 
         if backend_name == "file_ipc":
-            from autocad_mcp.backends.file_ipc import FileIPCBackend
+            from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
 
             _autocad_seen = True
             backend = FileIPCBackend()
@@ -55,7 +55,7 @@ async def get_backend() -> AutoCADBackend:
                     "was using it. Reopen AutoCAD and a drawing, then system(operation='init'). "
                     "Not falling back to an empty ezdxf drawing."
                 )
-            from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+            from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
 
             backend = EzdxfBackend()
 

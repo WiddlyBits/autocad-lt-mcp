@@ -7,7 +7,7 @@ import tempfile
 import ezdxf
 import pytest
 
-from autocad_mcp.backends.ezdxf_backend import EzdxfBackend
+from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
 
 
 @pytest.fixture

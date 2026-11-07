@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from autocad_mcp import config, doc_switch
-from autocad_mcp.backends.base import CommandResult
+from autocad_lt_mcp import config, doc_switch
+from autocad_lt_mcp.backends.base import CommandResult
 
 FRAME, MDI, START, TA, BP = 100, 200, 301, 302, 303
 
@@ -140,7 +140,7 @@ class TestStartGuard:
     def test_start_tab_raises_instead_of_ezdxf(self, fake, monkeypatch):
         monkeypatch.setattr(config, "WIN32_AVAILABLE", True)
         monkeypatch.setenv("AUTOCAD_MCP_BACKEND", "auto")
-        with patch("autocad_mcp.backends.file_ipc.find_autocad_window", return_value=None):
+        with patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", return_value=None):
             with pytest.raises(RuntimeError, match="start_tab_active") as e:
                 config.detect_backend()
         assert "TA.dwg" in str(e.value) and "switch_doc" in str(e.value)
@@ -148,12 +148,12 @@ class TestStartGuard:
     def test_no_autocad_still_falls_to_ezdxf(self, monkeypatch):
         monkeypatch.setattr(config, "WIN32_AVAILABLE", True)
         monkeypatch.setenv("AUTOCAD_MCP_BACKEND", "auto")
-        with patch("autocad_mcp.backends.file_ipc.find_autocad_window", return_value=None), \
+        with patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", return_value=None), \
                 patch.object(doc_switch, "find_autocad_frame", return_value=None):
             assert config.detect_backend() == "ezdxf"
 
     def test_hint(self):
-        from autocad_mcp.client import _error
+        from autocad_lt_mcp.client import _error
 
         out = json.loads(_error(RuntimeError("start_tab_active: ...")))
         assert "switch_doc" in out["hint"]
@@ -163,11 +163,11 @@ class TestServerOp:
     """system(switch_doc): re-init after the move, ok only when DWGNAME agrees."""
 
     def _call(self, moved, dwgname):
-        from autocad_mcp import client, server
+        from autocad_lt_mcp import client, server
 
         backend = AsyncMock()
         backend.load_libraries.return_value = CommandResult(ok=True, payload={"dwg": dwgname})
-        with patch("autocad_mcp.doc_switch.switch_doc", AsyncMock(return_value=moved)), \
+        with patch("autocad_lt_mcp.doc_switch.switch_doc", AsyncMock(return_value=moved)), \
                 patch.object(server, "get_backend", AsyncMock(return_value=backend)):
             client._backend = object()
             try:

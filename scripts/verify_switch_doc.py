@@ -18,8 +18,8 @@ import asyncio
 import json
 import sys
 
-from autocad_mcp import client, doc_switch, server
-from autocad_mcp.config import detect_backend
+from autocad_lt_mcp import client, doc_switch, server
+from autocad_lt_mcp.config import detect_backend
 
 
 async def dwgname() -> str | None:

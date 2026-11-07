@@ -29,7 +29,7 @@
 ;;;
 ;;; ---------------------------------------------------------------------
 ;;; THIS FILE IS A TRANSCRIPTION. The arithmetic it implements lives in
-;;; src/autocad_mcp/probes.py and is held to tests/golden/*.dxf by pytest.
+;;; src/autocad_lt_mcp/probes.py and is held to tests/golden/*.dxf by pytest.
 ;;; execute_lisp exists only on the file_ipc backend, so nothing here can be
 ;;; exercised without a running AutoCAD - which is exactly why none of it was
 ;;; invented here. Change the Python first, let the tests fail, then port.
@@ -48,7 +48,7 @@
 ;;; Compatible with AutoCAD LT 2024+.
 
 ;; -----------------------------------------------------------------------
-;; Tunables - keep in step with src/autocad_mcp/probes.py
+;; Tunables - keep in step with src/autocad_lt_mcp/probes.py
 ;; -----------------------------------------------------------------------
 
 ;; v2 added the `space` line and the grid's mode. Both exist because v1 could
@@ -1279,7 +1279,7 @@
 
    Written to a file rather than returned through IPC on purpose - the payload
    would otherwise cost exactly what it is meant to save. Diff it against
-   tests/golden/*.snap, which src/autocad_mcp/probes.py produces for the same
+   tests/golden/*.snap, which src/autocad_lt_mcp/probes.py produces for the same
    drawing; that comparison is what validates this file."
   (mcp:begin-output)
   (mcp:budget-init nil nil nil)

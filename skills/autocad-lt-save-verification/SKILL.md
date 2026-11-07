@@ -1,5 +1,5 @@
 ---
-name: autocad-save-verification
+name: autocad-lt-save-verification
 description: >-
   Save .dwg in place, SAVEAS to a new path, create a .dwg from a .dwt template,
   plot_pdf, DXFOUT/DXF export, drawing open/close, or verify that any write
@@ -105,7 +105,7 @@ When a save matters, cross the boundary: `drawing(save)` ok and `drawing(info)` 
 answers from the same path. Check the file with `mcp:verify-write`, or read a DXF back:
 
 ```bash
-uv run python -m autocad_mcp.probe_dxf out.dxf --text   # from your clone of this repo
+uv run python -m autocad_lt_mcp.probe_dxf out.dxf --text   # from your clone of this repo
 ```
 
 A DXF that parses is the strongest proof the export is real and complete.

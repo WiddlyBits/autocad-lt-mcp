@@ -7,9 +7,9 @@ import math
 import ezdxf
 import structlog
 
-from autocad_mcp.backends.base import AutoCADBackend, BackendCapabilities, CommandResult
-from autocad_mcp.config import SCREENSHOT_MAX_DIMENSION
-from autocad_mcp.screenshot import MatplotlibScreenshotProvider
+from autocad_lt_mcp.backends.base import AutoCADBackend, BackendCapabilities, CommandResult
+from autocad_lt_mcp.config import SCREENSHOT_MAX_DIMENSION
+from autocad_lt_mcp.screenshot import MatplotlibScreenshotProvider
 
 log = structlog.get_logger()
 
@@ -704,7 +704,7 @@ class EzdxfBackend(AutoCADBackend):
 
     async def pid_list_symbols(self, category) -> CommandResult:
         """List CTO symbols from disk or built-in catalog."""
-        from autocad_mcp.pid.cto_library import list_symbols
+        from autocad_lt_mcp.pid.cto_library import list_symbols
         symbols = list_symbols(category)
         return CommandResult(ok=True, payload={"category": category, "symbols": symbols, "count": len(symbols)})
 

@@ -1,4 +1,4 @@
-# autocad-mcp (Gianni's fork)
+# autocad-lt-mcp (Gianni's fork)
 
 Third-party open source cloned from `puran-water/autocad-mcp`. Gianni has no relationship with the
 author (`hvkshetry`) and cannot request permissions on the upstream repo.
@@ -34,7 +34,7 @@ upstream  https://github.com/puran-water/autocad-mcp.git  <- author's repo, pull
   changes, name it: `git pull upstream main`. `main` is far ahead of `upstream/main`
   (`git rev-list --count upstream/main..main`), so that merge is a real event, not a fast-forward.
 - **A github.com credential persists in Git Credential Manager.** Pushes complete unattended
-  with no dialog (dated evidence: `autocad-mcp-repo-push-access` memory). Foreground is
+  with no dialog (dated evidence: `autocad-lt-mcp-repo-push-access` memory). Foreground is
   fine in this regime; backgrounding is only needed if the credential lapses.
 - **Tell which regime you are in before pushing, without popping a dialog:**
   `GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=echo git push --dry-run origin <branch>`. Exit 0 means a
@@ -56,8 +56,8 @@ upstream  https://github.com/puran-water/autocad-mcp.git  <- author's repo, pull
 
 ## Skills
 
-`skills/` is the **only** source of truth for the public AutoCAD skills — `autocad-mcp-workflow`
-and `autocad-save-verification`. Every other copy is a build artifact. Edit
+`skills/` is the **only** source of truth for the public AutoCAD skills — `autocad-lt-mcp-workflow`
+and `autocad-lt-save-verification`. Every other copy is a build artifact. Edit
 here, never in a loaded copy: editing a loaded copy is how a skill once documented a
 `preflight` block and an `mcp_select.lsp` that existed only on an unmerged branch.
 
@@ -88,7 +88,7 @@ commit is delivered. `-SyncedRoot <dir>` points `-Check` at a scratch copy for t
 add it back here. An older copy stays in public git history, including the `v3.2.0` tag.
 `-SkillsRoot <that folder>` runs `-Check` and `-Package` on it. `test_skill_drift` does not cover it.
 
-Error payloads and what to do about them: `skills/autocad-mcp-workflow/references/troubleshooting.md`.
+Error payloads and what to do about them: `skills/autocad-lt-mcp-workflow/references/troubleshooting.md`.
 Developer detail: `docs/error-model.md`. Open defects: `docs/known-issues.md`.
 
 ## Screenshot cost controls

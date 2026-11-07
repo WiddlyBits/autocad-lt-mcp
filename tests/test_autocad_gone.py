@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from autocad_mcp import client, config, doc_switch, server
-from autocad_mcp.backends.base import CommandResult
-from autocad_mcp.backends.file_ipc import FileIPCBackend
+from autocad_lt_mcp import client, config, doc_switch, server
+from autocad_lt_mcp.backends.base import CommandResult
+from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
 
 
 @pytest.fixture
@@ -33,8 +33,8 @@ def world(monkeypatch):
     monkeypatch.setattr(FileIPCBackend, "_hwnd_alive", lambda self: self._hwnd == state["hwnd"])
     monkeypatch.setattr(FileIPCBackend, "preflight", AsyncMock(return_value=CommandResult(ok=False)))
     monkeypatch.setattr(FileIPCBackend, "load_libraries", AsyncMock(return_value=CommandResult(ok=True, payload={})))
-    with patch("autocad_mcp.backends.file_ipc.find_autocad_window", side_effect=lambda: state["hwnd"]), \
-            patch("autocad_mcp.backends.file_ipc.multi_window_warning", return_value=None), \
+    with patch("autocad_lt_mcp.backends.file_ipc.find_autocad_window", side_effect=lambda: state["hwnd"]), \
+            patch("autocad_lt_mcp.backends.file_ipc.multi_window_warning", return_value=None), \
             patch.object(doc_switch, "find_autocad_frame", return_value=None):
         yield state
 
@@ -135,7 +135,7 @@ class TestStatusOnADeadWindow:
 
     @pytest.mark.asyncio
     async def test_live_window_reads_as_before(self, tmp_path, monkeypatch):
-        with patch("autocad_mcp.backends.file_ipc.multi_window_warning", return_value=None):
+        with patch("autocad_lt_mcp.backends.file_ipc.multi_window_warning", return_value=None):
             result = await self._backend(tmp_path, monkeypatch, alive=True).status()
         assert result.ok is True
         assert result.payload["hwnd_alive"] is True
