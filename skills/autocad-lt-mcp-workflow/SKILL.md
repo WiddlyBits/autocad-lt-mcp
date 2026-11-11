@@ -46,11 +46,9 @@ still starts on ezdxf, which the stop above catches.
 
 **Read the live selection first. `HS` is the fallback.** `(mcp:sel-dump)` reads the grips up
 right now and reports `source:"implied"`. A dispatch does not clear them, because the server
-sends ESC only when recovering from stale IPC files. Measured on LT 2027: 6 hand selections
-(LINE, LWPOLYLINE, CIRCLE, ARC, TEXT, MTEXT, INSERT, in Model and on a layout) across 2 AutoCAD
-sessions read back exactly, through up to 5 dispatches and a typed `REGEN`.
+sends ESC only when recovering from stale IPC files (measured; see `references/why-this-skill-exists.md`).
 
-The limits: ESC recovery clears grips (3 of 3 in that test), and so does any command that
+The limits: ESC recovery clears grips (3 of 3 in the selection test; see `references/why-this-skill-exists.md`), and so does any command that
 consumes the selection. If `source` is `"none"` or the count is wrong, don't ask the user to
 re-select and hope.
 
@@ -79,8 +77,7 @@ The verbs each take `(handles dwg tab ...)` and report what they changed:
 ```
 
 Anything they do not cover is hand-written AutoLISP — but read the dump first and write
-patterns against strings you have actually read. A `wcmatch` pattern written from memory
-matched 0 of 152 labels.
+patterns against strings you have actually read, never from memory.
 
 ## Rule 2: name the document and the space on every edit
 
@@ -104,8 +101,7 @@ The guard refuses when `CTAB` differs. To edit Model from a layout: `setvar CTAB
 
 **Never call `drawing(create)` on the AutoCAD backend.** It is refused now, but a server from
 before that refusal runs ERASE and PURGE on the *active document* and returns `ok:true` naming
-it. Run on a working file 2026-11-04: Layout1 went from 26 entities to 1, Model from 29,745 to
-29,613, 3 layers gone. Two `drawing(undo)`s restored it. For a scratch drawing, open a copy of a
+it (incident in `references/why-this-skill-exists.md`). For a scratch drawing, open a copy of a
 file from disk.
 
 **To change drawings, use `system(switch_doc, data={"dwg": "<exact tab title>"})`** instead
@@ -138,10 +134,9 @@ is in the wrong space. See `references/activex-and-lisp-limits.md`.
 **To back out an edit, use `drawing(undo)`** — every verb opens one named UNDO group
 (`(mcp:undo-begin "<label>")`/`(mcp:undo-end)`; use them in hand-written edits too — the
 label is required, a bare `(mcp:undo-begin)` errors `too few arguments`), so one undo reverses
-the whole batch, if nothing ran after it. A view step counts: a zoom after the batch took the
-first undo, which returned `ok:false`, "UNDO changed nothing", while restoring `VIEWSIZE`, and a
-second undo removed the edit. Check the entity by handle, not `extents`, which an undo does not
-shrink. Never reverse a move by moving back: a re-move with a slightly different
+the whole batch, if nothing ran after it. A view step counts: a zoom after the batch takes the
+first undo (`ok:false`, "UNDO changed nothing"), and a second undo removes the edit.
+Check the entity by handle, not `extents`, which an undo does not shrink. Never reverse a move by moving back: a re-move with a slightly different
 offset leaves a drawing that is not the one you started with.
 
 **Load the `autocad-lt-save-verification` skill before any save, SAVEAS, `plot_pdf`, DXF export,
@@ -171,69 +166,22 @@ genuinely cannot answer.
 screenshot to read a label**. Angles come back in degrees. It omits LWPOLYLINE bulges and TEXT
 alignment, so it can't prove an arc or a centered label: read raw `entget` groups 42 and 11, 72.
 
-**L3b is the rung for "what is actually in this drawing".** Parsing happens on this machine,
-so only the answer enters the conversation. Run from your clone of this repo under `uv run`:
+**L3b answers "what is actually in this drawing" at ~0 tokens:** parsing runs on this machine,
+so only the answer enters the conversation. `probe_dxf` flags: `references/screenshots-and-dxf.md`.
 
-```
-python -m autocad_lt_mcp.probe_dxf out.dxf                 # the grid snapshot
-python -m autocad_lt_mcp.probe_dxf out.dxf --text          # every string, with layer and point
-python -m autocad_lt_mcp.probe_dxf out.dxf --spaces        # the layout names
-python -m autocad_lt_mcp.probe_dxf out.dxf --text --space Layout1 --layer TITLE
-                                    # title-block read-back: handle, height, MTEXT width + attach
-```
+**Before any L4 or L5 capture, read `references/screenshots-and-dxf.md`.** The short version:
+always pass `region` for a detail check (it crops before the downscale: sharper and cheaper);
+`save_to` attaches nothing; never use `region="canvas"` to check a band or row; a minimized
+window is refused, so restore it; batch full-window captures to a checkpoint, never one per
+edit; crop reference photos too; `view(zoom_window)` takes drawing coordinates, not screen pixels.
 
-`--text` reads model space unless `--space` names a layout; an unknown name lists the real ones.
-
-**Screenshot parameters, in order of effect.** `region=[left,top,right,bottom]` crops
-*before* the downscale, so a 500x400 detail crop is ~270 tokens and *sharper* than the
-whole window — **always pass it for a detail check.** `save_to="….png"` writes to disk and
-attaches nothing. `max_dimension` (default 1280, clamped 64–2576); halving it roughly
-quarters the cost. Every capture reports `est_tokens`. Non-levers: `quality` (JPEG) shrinks
-bytes, not tokens, and nothing above 2576 px survives the vision API's own downscale.
-
-**Finding the crop without a full-window capture, in this order.** Coordinates known: use
-`region_dwg`, always straight after `zoom_window` with the same box. Not known: use `grid=true`.
-Still too coarse: use `grid=true` plus `region`, which redraws the rules on the crop. Measured
-on one 44x9 band: `region_dwg` 460 tokens, `region="canvas"` 1,702. A string region's resolved
-px come back in `region`.
-
-- `region_dwg=[x1,y1,x2,y2]`: crop by drawing coordinates from `(mcp:sel-dump)` or
-  `entity(get)`, in the current view. Overrides `region`. AutoCAD backend only; refused on
-  twisted views, active layout viewports and tiled viewports, so use `grid=true` there.
-- `grid=true`: a preview (longest side always 560; `max_dimension` is ignored) with red rules
-  labelled in native window px.
-  Read the labels and pass them back as `region` for the sharp crop.
-- `region="changed"`: crops to the canvas pixels that changed since the previous capture of
-  this window. Plan it before the edit: `save_to` capture as the 0-token baseline in the same
-  view, edit, capture. It also shows nothing else moved, which `entity(get)` can't. With no
-  baseline it errors and that capture becomes one; with no change it errors, which is itself the
-  answer. For local edits: a pan or zoom changes every pixel with something drawn on it, which is
-  nearly the whole canvas on a full drawing but only the UCS icon on an empty one.
-- `region="canvas"`: only the drawing area, no ribbon, tabs, palettes or command line. Never use
-  it to check a band or row; it pays for the empty canvas.
-
-A minimized window is refused, because it captures black at full price. Restore it and retry.
-
-Reserve a full-window capture for what only pixels answer — layout, overlap, match to a
-reference photo — and batch it to a checkpoint after a group of edits, not after each one.
-
-Reference photos climb the same ladder: crop to the area you need before a full-size read. Skip a photo whose name shows it doesn't cover the area,
-and say you skipped it.
-
-`view(zoom_window)` takes **drawing coordinates, not screen pixels**; pixel-like guesses
-don't move the view and cost another screenshot to notice. Prefer `(mcp:sel-show)`, or
-compute the window from entity coordinates.
-
-## Rule 4: batch, and stop at phase boundaries
+## Rule 4: batch
 
 Several sequential command-line operations belong in **one** `.scr` run via
 `(command "_.SCRIPT" "C:/temp/batch.scr")`, not one `execute_lisp` each — one request
 instead of fifteen. Snippet in `references/activex-and-lisp-limits.md`. Any `execute_lisp`
 body longer than ~400 bytes, or with quotes nested beyond 2 levels, goes in a temp `.lsp`
 and runs as `(load "path")`; inlined, it breaks the JSON envelope.
-
-When a phase is confirmed complete (cleanup → template → layout → detailing), suggest the
-next one start as a fresh chat with a short written handoff.
 
 ## When something is wrong
 
@@ -250,5 +198,7 @@ mutating call blindly** — check state first; a blind retry can double-apply.
   and selection techniques for 20–30 K entity drawings
 - `references/activex-and-lisp-limits.md` — LT's ActiveX limits, hang recovery, `.scr`
   batching, raw-AutoLISP traps, and rebuilding an entity safely
+- `references/screenshots-and-dxf.md` — `probe_dxf` flags, screenshot parameters, finding the
+  crop without a full-window capture
 - `references/setup-and-autoload.md` — Startup Suite, restarts, stale definitions
 - `references/why-this-skill-exists.md` — the measurements behind the rules
