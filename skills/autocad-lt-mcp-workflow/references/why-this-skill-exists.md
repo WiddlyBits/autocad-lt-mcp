@@ -28,3 +28,11 @@ time (the server then posted ESC before every dispatch, which clears the implied
 five questions; one selection took four round trips to characterise; an un-echoed
 `ssget "_P"` edit left strays on `TITLE`; and a highlight outside the view confirmed nothing.
 Each became a rule: HS handoff, one `sel-dump`, `sel-show` echo, handle lists, the guard.
+
+**Evidence moved out of `SKILL.md` (2026-11-10 trim).** Live selection: 6 hand selections (LINE,
+LWPOLYLINE, CIRCLE, ARC, TEXT, MTEXT, INSERT, in Model and on a layout) across 2 AutoCAD sessions
+read back exactly through up to 5 dispatches and a typed `REGEN` (LT 2027). A `wcmatch` pattern
+written from memory matched 0 of 152 labels. `drawing(create)` on a pre-refusal server, run on a
+working file 2026-11-04: Layout1 went from 26 entities to 1, Model from 29,745 to 29,613, 3 layers
+gone; two `drawing(undo)`s restored it. A zoom after a batch took the first undo while restoring
+`VIEWSIZE`. Crop cost on one 44x9 band: `region_dwg` 460 tokens, `region="canvas"` 1,702.
