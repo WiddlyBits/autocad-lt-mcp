@@ -53,7 +53,7 @@ def parse_versions(pyproject, init):
 
 def grep_count(pattern, base=None):
     # base=None counts the working tree; lines are counted because -h drops the file prefix
-    args = ["grep", "-h", "-E", pattern] + ([base] if base else ["--untracked"]) + ["--", "tests"]
+    args = ["grep", "-h", "-E"] + ([] if base else ["--untracked"]) + ["-e", pattern] + ([base] if base else []) + ["--", "tests"]
     return len([ln for ln in git_out(*args).splitlines() if ln.strip()])
 
 
