@@ -10,7 +10,10 @@ path instead — Dropbox layouts change and blind search costs 10x a question.
 
 ```bash
 uv run pytest -q
+uv run ruff check src/
 ```
+
+CI runs both (`.github/workflows/ci.yml`); run ruff before pushing.
 
 Expected count on `main`: **889**. A lower count is a real failure. Update this number in the
 same commit that changes it — a stale number turns a real failure into one that reads as
@@ -51,6 +54,8 @@ upstream  https://github.com/puran-water/autocad-mcp.git  <- author's repo, pull
   test that only passes because `C:/temp` exists locally will fail there.
 - For PRs to upstream, build the compare URL by hand and let Gianni decide whether to submit:
   `https://github.com/puran-water/autocad-mcp/compare/main...WiddlyBits:autocad-lt-mcp:<branch>?expand=1`
+- PR descriptions and README sections open with one paragraph a non-engineer can follow:
+  what it does and why it matters. Technical detail comes after.
 - Identity is set **repo-local only** to `Gianni <giannimagnabooking@gmail.com>` — deliberately not
   global. Never commit as `hvkshetry`.
 
