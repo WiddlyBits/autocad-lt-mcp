@@ -248,3 +248,9 @@ class TestMatplotlibProvider:
         # Strictly decreasing pixel count as the cap tightens.
         counts = [w * h for w, h in sizes]
         assert counts == sorted(counts, reverse=True)
+
+def test_max_dimension_range_is_pinned():
+    # The vision API downscales past 2576 px; tests above compare against the constant, so pin the number.
+    from autocad_lt_mcp.config import SCREENSHOT_MAX_DIMENSION_RANGE
+
+    assert SCREENSHOT_MAX_DIMENSION_RANGE == (64, 2576)
