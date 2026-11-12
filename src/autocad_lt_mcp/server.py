@@ -1,4 +1,4 @@
-"""AutoCAD MCP Server v3.1 — 8 consolidated tools with operation dispatch.
+"""AutoCAD MCP Server v3.3 — 8 consolidated tools with operation dispatch.
 
 Tools: drawing, entity, layer, block, annotation, view, system
 """

@@ -1,4 +1,4 @@
-;;; mcp_dispatch.lsp — File-based IPC dispatcher for AutoCAD MCP v3.1
+;;; mcp_dispatch.lsp — File-based IPC dispatcher for AutoCAD MCP v3.3
 ;;;
 ;;; Protocol:
 ;;;   1. Python writes command JSON to C:/temp/autocad_lt_mcp_cmd_{id}.json
