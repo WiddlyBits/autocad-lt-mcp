@@ -74,6 +74,16 @@ These came up in real drafting work.
 | **"Saved" didn't mean saved.** A failed save reported success, and the drawing that was still open was the original. | Every save and DXF export is checked on disk. If the file isn't there, you're told. |
 | **The server hung when AutoCAD was closed.** One `system(status)` call ran 1,046 s with no answer, a deadlock while loading numpy on the fallback path. | The same call answers in under a second, measured through a chat's MCP connection. |
 
+## Where the recent fixes are tested
+
+Each row names a test that fails if the fix is undone. All three files pass on `main` (31 and 9 tests, run 2026-11-12).
+
+| Fix | What you see now | Test |
+|---|---|---|
+| A tool call with an argument in the wrong place | The error names the missing argument and where it belongs, instead of succeeding silently or showing a bare `KeyError` | [`test_data_key_at_top_level_names_the_missing_argument`](tests/test_misplaced_args.py) |
+| A timeout while AutoCAD waits for input | The error carries the prompt AutoCAD is waiting on, and says whether the action may still finish | [`TestPendingPrompt`](tests/test_dispatch_claim.py) |
+| AutoCAD closed mid-session | `system(init)` refuses rather than quietly switching to the headless backend, and `system(status)` reports a dead window instead of "idle" | [`test_init_refuses_instead_of_landing_on_ezdxf`](tests/test_autocad_gone.py), [`test_dead_window_is_not_idle_or_fresh`](tests/test_autocad_gone.py) |
+
 ## A test gate for AI-written changes
 
 When an AI assistant edits this repo, "all done" can be wrong: a test quietly deleted, a skip added, or the expected test count lowered to match. This repo has a gate that catches those, and it works as a gate. At the end of each turn it runs a checker, and if a check fails it hands the failure back so the assistant has to fix it before it can finish. The gate is opt-in and per checkout: it only runs while a `.claude/gate.on` file exists and a Stop hook is registered in your local Claude Code settings. It does nothing for people who just use the server.
