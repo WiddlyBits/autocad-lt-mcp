@@ -829,5 +829,5 @@ def main():
     # returns, and the backend is only picked at the first tool call: import unconditionally.
     import autocad_lt_mcp.backends.ezdxf_backend  # noqa: F401
 
-    log.info("autocad_lt_mcp_starting", version="3.1.0")
+    log.info("autocad_lt_mcp_starting", version="3.3.0")
     mcp.run(transport="stdio")
