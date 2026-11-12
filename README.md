@@ -57,7 +57,7 @@ Read from upstream's code at `5a7ced7`, not run against it. Upstream became acti
 | Erasing | Erasing something already erased brings it back | Reports "not found" |
 | Opening a drawing | Reports success without checking | Says it can't, and names the drawing that is still active |
 | Safety labels | Marks `system`, which can run any code, as read-only | Each tool labelled correctly, so the assistant knows which actions need your OK |
-| Tests | 226 (CI at `53275a3`) | 889 |
+| Tests | 226 (CI at `53275a3`) | 890 |
 
 This repo also ships working rules that teach an assistant to drive AutoCAD safely ([`skills/`](skills/)).
 Known limits are listed in [docs/known-issues.md](docs/known-issues.md). Error codes and when a retry
@@ -73,6 +73,23 @@ These came up in real drafting work.
 | **Selections took four round trips to describe.** In the sessions that prompted selection handoff, 129 of 193 tool calls went on this kind of back-and-forth. | One call reports what's selected and edits exactly those objects. |
 | **"Saved" didn't mean saved.** A failed save reported success, and the drawing that was still open was the original. | Every save and DXF export is checked on disk. If the file isn't there, you're told. |
 | **The server hung when AutoCAD was closed.** One `system(status)` call ran 1,046 s with no answer, a deadlock while loading numpy on the fallback path. | The same call answers in under a second, measured through a chat's MCP connection. |
+
+## A test gate for AI-written changes
+
+When an AI assistant edits this repo, "all done" can be wrong: a test quietly deleted, a skip added, or the expected test count lowered to match. This repo has a gate that catches those, and it works as a gate. At the end of each turn it runs a checker, and if a check fails it hands the failure back so the assistant has to fix it before it can finish. The gate is opt-in and per checkout: it only runs while a `.claude/gate.on` file exists and a Stop hook is registered in your local Claude Code settings. It does nothing for people who just use the server.
+
+| Check | What it catches | Proof |
+|---|---|---|
+| Tests pass, and the count doesn't drop below the number in `CLAUDE.md` | Failing or deleted tests | Planted a deleted test: caught (888 passed against a baseline of 889 at the time) |
+| `CLAUDE.md` count unchanged against the starting commit | Lowering the bar to pass | Planted 889 to 888 alongside a deleted test: caught |
+| No new `skip` or `xfail`; assert count doesn't fall | Silenced or gutted tests | Planted a skip: caught |
+| `ruff` lint | What CI would reject | Planted an unused import: caught |
+| Every version string matches `pyproject.toml` (6 places) | Version drift, which no test covered | Planted a stale string: caught. Three had already drifted and are fixed |
+| No change under `tests/golden/` | A red snapshot rebaselined into a pass | Part of the check list; not planted |
+
+One gap it found in itself: the screenshot size limit (64 to 2576 px) was only tested against its own constant, so changing the number passed. [`test_max_dimension_range_is_pinned`](tests/test_screenshot.py) now pins it, and the plant fails.
+
+Known limits: it can't see a test rewritten to `assert True` (it prints a "tests modified" warning for a human to review), and it only text-checks the AutoLISP, since LISP can't run offline. The gate has been tested with Claude only; Google and OpenAI assistants are untested. The checker is [`scripts/check.py`](scripts/check.py) and the hook is [`scripts/stop_gate.py`](scripts/stop_gate.py). Its `--selftest` flag checks the parsers; the plant results above were run by hand, not by CI.
 
 ## Contributing back upstream
 

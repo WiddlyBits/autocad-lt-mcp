@@ -51,6 +51,28 @@ def parse_versions(pyproject, init):
     return a.group(1), b.group(1)
 
 
+# (file, regex capturing the version, how many dotted parts it writes: 3 = "3.3.0", 2 = "v3.3")
+VERSION_SITES = [
+    ("src/autocad_lt_mcp/__init__.py", r"^__version__\s*=\s*\"([\d.]+)\"", 3),
+    ("src/autocad_lt_mcp/__init__.py", r'^"""AutoCAD MCP Server v([\d.]+)', 2),
+    ("src/autocad_lt_mcp/server.py", r'^"""AutoCAD MCP Server v([\d.]+)', 2),
+    ("src/autocad_lt_mcp/server.py", r'autocad_lt_mcp_starting", version="([\d.]+)"', 3),
+    ("lisp-code/mcp_dispatch.lsp", r"^;;; mcp_dispatch\.lsp.*MCP v([\d.]+)", 2),
+    ("lisp-code/mcp_dispatch.lsp", r"MCP Dispatch v([\d.]+) loaded", 2),
+]
+
+
+def stale_versions(pyver, read):
+    """Return 'file: found' for every site that disagrees with pyproject; a missing site counts too."""
+    bad = []
+    for path, pat, parts in VERSION_SITES:
+        m = re.search(pat, read(path), re.M)
+        want = ".".join(pyver.split(".")[:parts])
+        if not m or m.group(1) != want:
+            bad.append(f"{path}: {m.group(1) if m else 'not found'} (want {want})")
+    return bad
+
+
 def grep_count(pattern, base=None):
     # base=None counts the working tree; lines are counted because -h drops the file prefix
     args = ["grep", "-h", "-E"] + ([] if base else ["--untracked"]) + ["-e", pattern] + ([base] if base else []) + ["--", "tests"]
@@ -62,6 +84,11 @@ def selftest():
     assert parse_passed("1 failed, 888 passed in 9.1s") == 888
     assert parse_passed("no tests ran") == 0
     assert parse_versions('name="a"\nversion = "3.3.0"\n', '"""d"""\n__version__ = "3.3.0"\n') == ("3.3.0", "3.3.0")
+    files = {p: "" for p, _, _ in VERSION_SITES}
+    files["src/autocad_lt_mcp/__init__.py"] = '"""AutoCAD MCP Server v3.3 — x"""\n__version__ = "3.3.0"\n'
+    files["src/autocad_lt_mcp/server.py"] = '"""AutoCAD MCP Server v3.1 — x"""\nlog.info("autocad_lt_mcp_starting", version="3.3.0")\n'
+    files["lisp-code/mcp_dispatch.lsp"] = ';;; mcp_dispatch.lsp — d MCP v3.3\n(princ "MCP Dispatch v3.3 loaded")\n'
+    assert stale_versions("3.3.0", files.__getitem__) == ["src/autocad_lt_mcp/server.py: 3.1 (want 3.3)"]
     print("selftest ok")
 
 
@@ -92,9 +119,9 @@ def main():
     add("C5 asserts", a_now >= a_base, f"{a_now} now, {a_base} base")
     r = run(["uv", "run", "ruff", "check", "src/"])
     add("C6 lint", r.returncode == 0, (r.stdout + r.stderr).strip()[-1500:])
-    v = parse_versions((ROOT / "pyproject.toml").read_text(encoding="utf-8"),
-                       (ROOT / "src" / "autocad_lt_mcp" / "__init__.py").read_text(encoding="utf-8"))
-    add("C7 version", v[0] == v[1], f"pyproject {v[0]}, __init__ {v[1]}")
+    pyver = VERSION_RE.search((ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
+    bad = stale_versions(pyver, lambda p: (ROOT / p).read_text(encoding="utf-8"))
+    add("C7 version", not bad, "; ".join(bad) or f"all {len(VERSION_SITES)} sites at {pyver}")
     g = git_out("diff", "--name-only", base, "--", "tests/golden").split()
     add("C8 snapshots", not g, ", ".join(g) or "no change")
 
