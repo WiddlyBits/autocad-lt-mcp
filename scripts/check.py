@@ -40,8 +40,8 @@ def parse_count(text):
 
 
 def parse_passed(text):
-    m = PASSED_RE.search(text)
-    return int(m.group(1)) if m else 0
+    found = PASSED_RE.findall(text)
+    return int(found[-1]) if found else 0
 
 
 def parse_versions(pyproject, init):
@@ -101,7 +101,8 @@ def main():
     if git_out("diff", "--name-only", base, "--", "tests").strip():
         print("WARN tests/ modified: review the diff")
     for c in checks:
-        print(("PASS " if c["ok"] else "FAIL ") + c["name"] + ": " + c["detail"].splitlines()[-1] if c["detail"] else c["name"])
+        last = c["detail"].splitlines()[-1] if c["detail"] else ""
+        print(("PASS " if c["ok"] else "FAIL ") + c["name"] + (": " + last if last else ""))
     ok = all(c["ok"] for c in checks)
     print(json.dumps({"verdict": "PASS" if ok else "FAIL", "checks": checks, "seconds": round(time.time() - t0, 1)}))
     return 0 if ok else 1
