@@ -66,6 +66,8 @@ and has no automatic rollback.
 `assert_doc()` is a Python pre-batch guard that fires before any IPC file is written: on
 `wrong_doc` no command in the batch was sent, so the whole batch is safe to retry. A mid-batch
 `WRONG-DOC` (LISP) means only that one call was refused — the calls before it in the batch ran.
+Backend code can pass `expected_doc` to `_dispatch`/`execute_lisp` for the same check on one call;
+no MCP tool exposes it.
 
 ## Error codes
 
@@ -74,9 +76,9 @@ and has no automatic rollback.
 | Field | Value |
 |---|---|
 | **Origin** | Python-dispatch |
-| **Trigger** | The AutoCAD window handle is absent from the initial search, or `IsWindow()` returns false on a cached handle. |
+| **Trigger** | The AutoCAD window handle is absent from the initial search, or `IsWindow()` returns false on a cached handle and re-finding the window fails. |
 | **Payload** | None beyond `ok`/`error`. |
-| **Notes** | Fires on initial connection failure and mid-session window loss. |
+| **Notes** | Fires on initial connection failure and mid-session window loss. A dead handle that can be re-found (AutoCAD restarted) is replaced silently and the call proceeds. |
 
 ### `autocad_busy`
 
@@ -112,9 +114,9 @@ and has no automatic rollback.
 | **Origin** | Python-dispatch |
 | **Trigger** | Timed out on a non-mutating call. |
 | **Payload** | `error` is the free-form string `"Timeout waiting for result (request_id=…)"`; payload `pending_prompt`. |
+| **Notes** | Distinguished from `timeout_mutating` only by command classification. Callers matching on `error` must handle both forms. |
 
 All three timeouts carry `pending_prompt`: the live command-line prompt read through UI Automation (`command_line.read_command_line`) after the wait, or `pending_prompt_error` when that read fails (always off Windows). Attached in `FileIPCBackend._with_pending_prompt`.
-| **Notes** | Distinguished from `timeout_mutating` only by command classification. Callers matching on `error` must handle both forms. |
 
 ### `save_unverified`
 
@@ -130,9 +132,9 @@ All three timeouts carry `pending_prompt`: the live command-line prompt read thr
 | Field | Value |
 |---|---|
 | **Origin** | Python-dispatch (`assert_doc`) |
-| **Trigger** | The active document name does not match the caller's `expected`. |
-| **Payload** | `expected: <str>`, `actual: <str>` |
-| **Notes** | Same root cause as LISP `WRONG-DOC`, caught earlier. |
+| **Trigger** | The active document name does not match the caller's `expected` (case-insensitive). |
+| **Payload** | `expected: <str>`, `actual: <str>` — `actual` is the raw `("WRONG-DOC" "<DWGNAME>")` reply from `mcp:assert-doc`. |
+| **Notes** | Same root cause as LISP `WRONG-DOC`, caught earlier. Requires `mcp_probes.lsp` loaded in the drawing; otherwise the `execute_lisp` error comes back unchanged. |
 
 ### `command_active`
 
@@ -141,7 +143,7 @@ All three timeouts carry `pending_prompt`: the live command-line prompt read thr
 | **Origin** | LISP-dispatch |
 | **Trigger** | `CMDNAMES` is non-empty when the dispatcher runs. |
 | **Payload** | `active: <cmdnames>` |
-| **Notes** | Inert for IPC calls — see `known-issues.md`. `autocad_busy` catches the condition earlier. |
+| **Notes** | Checked in `mcp_dispatch.lsp` before the command runs, so nothing was sent to the command line. `autocad_busy` catches the same condition earlier where COM is available (never on LT). |
 
 ### `WRONG-DOC`
 
