@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/WiddlyBits/autocad-lt-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/WiddlyBits/autocad-lt-mcp/actions/workflows/ci.yml)
 
-An MCP server for AutoCAD LT. It connects an AI assistant to AutoCAD LT, so it can read, edit and check real drawings while you keep working. It's built and tested on AutoCAD LT 2027, and full AutoCAD is untested. It was developed with Claude and started as a fork of [puran-water/autocad-mcp](https://github.com/puran-water/autocad-mcp).
+An MCP server for AutoCAD LT (MCP is the standard way to plug a tool into an AI assistant). It connects an AI assistant to AutoCAD LT, so it can read, edit and check real drawings while you keep working. It's built and tested on AutoCAD LT 2027, and full AutoCAD is untested. It was developed with Claude and started as a fork (a copy) of [puran-water/autocad-mcp](https://github.com/puran-water/autocad-mcp), the original project, called "upstream" below.
 
 Not affiliated with, endorsed by or sponsored by Autodesk, Inc. AutoCAD and AutoCAD LT are registered trademarks of Autodesk, Inc.
 
@@ -76,7 +76,7 @@ These came up in real drafting work.
 
 ## Where the recent fixes are tested
 
-Each row names a test that fails if the fix is undone. All three files pass on `main` (31 and 9 tests, run 2026-11-12).
+Each row names a test that fails if the fix is undone. All three files pass on `main` (4, 27 and 9 tests, in the order listed, run 2026-11-12).
 
 | Fix | What you see now | Test |
 |---|---|---|
@@ -103,9 +103,9 @@ Known limits: it can't see a test rewritten to `assert True` (it prints a "tests
 
 ## Contributing back upstream
 
-`hvkshetry` merged [#18](https://github.com/puran-water/autocad-mcp/pull/18) and [#19](https://github.com/puran-water/autocad-mcp/pull/19) on 2026-11-03. Another contributor's [#15](https://github.com/puran-water/autocad-mcp/pull/15), merged the same day, fixed the duplicated tool results that this fork had also fixed.
+Upstream, `hvkshetry` merged [#18](https://github.com/puran-water/autocad-mcp/pull/18) and [#19](https://github.com/puran-water/autocad-mcp/pull/19) on 2026-11-03. Another contributor's [#15](https://github.com/puran-water/autocad-mcp/pull/15), merged the same day, fixed the duplicated tool results that this fork had also fixed.
 
-The fork's earlier stack of pull requests ([#2](https://github.com/WiddlyBits/autocad-lt-mcp/pull/2) to [#11](https://github.com/WiddlyBits/autocad-lt-mcp/pull/11)) was checked against `main` on 2026-11-12. Most of it was already there. What was missing came back as fresh pull requests from `main`, each with its own tests and CI run: the tool annotation test ([#19](https://github.com/WiddlyBits/autocad-lt-mcp/pull/19)), DIMENSION/HATCH/VIEWPORT bounding boxes ([#20](https://github.com/WiddlyBits/autocad-lt-mcp/pull/20)), redo wording ([#21](https://github.com/WiddlyBits/autocad-lt-mcp/pull/21)), `assert_doc` escaping ([#22](https://github.com/WiddlyBits/autocad-lt-mcp/pull/22)), entity payloads ([#23](https://github.com/WiddlyBits/autocad-lt-mcp/pull/23)) and the known-issues and error model docs ([#24](https://github.com/WiddlyBits/autocad-lt-mcp/pull/24)). None of it has been offered upstream yet.
+The fork's earlier stack of pull requests ([#2](https://github.com/WiddlyBits/autocad-lt-mcp/pull/2) to [#11](https://github.com/WiddlyBits/autocad-lt-mcp/pull/11)) was checked against `main` on 2026-11-12. Most of it was already there. What was missing came back as fresh pull requests on this fork, each with its own tests and CI run: the tool annotation test ([#19](https://github.com/WiddlyBits/autocad-lt-mcp/pull/19)), DIMENSION/HATCH/VIEWPORT bounding boxes ([#20](https://github.com/WiddlyBits/autocad-lt-mcp/pull/20)), redo wording ([#21](https://github.com/WiddlyBits/autocad-lt-mcp/pull/21)), `assert_doc` escaping ([#22](https://github.com/WiddlyBits/autocad-lt-mcp/pull/22)), entity payloads ([#23](https://github.com/WiddlyBits/autocad-lt-mcp/pull/23)) and the known-issues and error model docs ([#24](https://github.com/WiddlyBits/autocad-lt-mcp/pull/24)). None of it has been offered upstream yet.
 
 Still fork-only: selection handoff, `system(command_line)`, `switch_doc`, grid and `region_dwg` screenshots, probes, verified saves, the LT 2027 `drawing(plot_pdf)` sequence and the assistant skills.
 
