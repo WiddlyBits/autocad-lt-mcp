@@ -6,14 +6,25 @@ UNTESTED.
 
 ## Open
 
-**The entity handle is only read from top-level `entity_id`;** `data.handle` is ignored.
+**The crossing grid treats a solid HATCH as a filled region; AutoCAD does not.** Measured
+2026-10-29: `ssget "_C"` hits a solid hatch along its boundary and along its fill's internal
+triangulation edges, and misses windows inside it that touch neither. No group code describes
+that triangulation, so the Python grid marks the whole interior and the live grid marks a
+diagonal pattern. Snapshots of a drawing with a hatch differ in those rows only.
 
-**`mcp:ent-bbox-data` has no branch for some entity types** (DIMENSION, HATCH, and the type on
-a client template's `border line 02` layer, 2026-08-15), so `bbox-by-layer` reports `bbox none` for them.
-Crossing-mode grid maps still draw them, because `ssget` sees geometry the bbox code cannot measure.
+**Live snapshots are not byte-identical to an ezdxf-generated golden.** Two causes, neither
+in the bbox code (2026-10-29, `bbox_types.dxf`, every `layer` line identical): AutoCAD writes
+`$EXTMIN`/`$EXTMAX` on open, so `extents-header` is set live and `none` from ezdxf; and it
+creates the layout's ID 1 viewport on open, which adds an unmeasured entity on layer `0`.
 
-**`mcp:in-model-space` has no call sites.** It wraps an `entmakex` in `CTAB "Model"` and restores
-the tab. Use it only when the target is model space; a paper-space rebuild must not be wrapped.
+**`expected_doc` is backend-only.** No tool sets the `expected_doc` argument of
+`_dispatch`/`execute_lisp`; only backend code can. A tool caller gets the same check by calling
+`system(assert_doc)` first, at the cost of one extra round trip.
+
+**`redo` is refused through dispatch, cause unmeasured.** The refusal points at the command line.
+Measured 2026-10-28: `U`, then a dispatched `entity(count)`, then `REDO` at the command line
+answered "Everything has been redone", so a read does not clear the redo stack. Still unmeasured:
+a mutating dispatch in between, and `REDO` sent through a dispatch.
 
 ## LT 2027 limits (measured)
 
@@ -25,3 +36,8 @@ the tab. Use it only when the target is model space; a paper-space rebuild must 
 - `acaddoc.lsp` does not autoload, even on the support path with `SECURELOAD=0`; the APPLOAD
   Startup Suite does.
 - `DWGNAME` is the filename only, never a path; `(mcp:whoami)` adds `DWGPREFIX`.
+- LT registers no COM class: `GetActiveObject("AutoCAD.Application")` raises
+  `-2147221005 Invalid class string` (2026-10-28). `_is_autocad_busy` treats that as not busy,
+  so `autocad_busy` never fires on LT; `command_active` covers the busy-prompt case.
+- Trigger keystrokes posted while a modal dialog is open are queued, not dropped, and run
+  when it closes (2026-10-28).
