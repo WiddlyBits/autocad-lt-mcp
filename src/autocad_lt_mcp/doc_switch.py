@@ -38,7 +38,7 @@ def _win32() -> bool:
 def find_autocad_frame() -> int | None:
     """The AutoCAD main frame, whichever tab is active.
 
-    find_autocad_window() needs ".dwg" or "Drawing" in the title, so it misses
+    find_autocad_window() needs ".dwg"/".dxf"/".dwt" or "Drawing" in the title, so it misses
     the frame while Start is in front. This matches on the MFC frame class and
     an MDIClient child instead.
     """

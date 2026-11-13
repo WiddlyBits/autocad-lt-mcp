@@ -63,7 +63,7 @@ def list_autocad_windows() -> list[tuple[int, str]]:
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
                 text = title.lower()
-                if "autocad" in text and ("drawing" in text or ".dwg" in text):
+                if "autocad" in text and any(k in text for k in ("drawing", ".dwg", ".dxf", ".dwt")):
                     result.append((hwnd, title))
             return True
 
