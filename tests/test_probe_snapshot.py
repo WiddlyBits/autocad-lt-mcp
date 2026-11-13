@@ -413,11 +413,41 @@ class TestHeavyPolylineReference:
         doc = ezdxf.new()
         msp = doc.modelspace()
         poly = msp.add_polyline2d([(22.81, 35.85), (24.0, 37.0)])
-        hatch = msp.add_hatch()
-        hatch.paths.add_polyline_path([(30, 40), (31, 40), (31, 41)])
+        hatch = msp.add_hatch()  # no boundary paths: still measures nil, now that HATCH is measured
 
         box = entity_bbox(probe_dxf.entity_info(poly))
         assert box == BBox(22.81, 35.85, 24.0, 37.0)
 
         assert entity_bbox(probe_dxf.entity_info(hatch)) is None
         assert bbox_union([box, entity_bbox(probe_dxf.entity_info(hatch))]) == box
+
+class TestAdapterCarriesTheExtraTypes:
+    """What probe_dxf adds to the entity(get) shape for the types probes.py
+    measures from more than their own groups."""
+
+    @pytest.fixture(scope="class")
+    def golden(self):
+        return ezdxf.readfile(str(GOLDEN_DIR / "bbox_types.dxf"))
+
+    def test_dimension_names_its_block_and_the_block_is_kept(self, golden):
+        entities, blocks = probe_dxf.collect(golden)
+        dim = next(e for e in entities if e["type"] == "DIMENSION")
+        assert dim["block"].startswith("*D") and dim["block"] in blocks
+
+    def test_hatch_boundary_has_every_edge_kind(self, golden):
+        entities, _ = probe_dxf.collect(golden)
+        kinds = {edge["edge"] for e in entities if e["type"] == "HATCH" for edge in e["boundary"]}
+        assert kinds == {"points", "arc", "ellipse"}
+
+    def test_viewport_carries_its_rectangle(self, golden):
+        entities, _ = probe_dxf.collect(golden, "Layout1")
+        vp = next(e for e in entities if e["type"] == "VIEWPORT")
+        assert (vp["center"], vp["width"], vp["height"], vp["clipped"]) == ([5.0, 4.0], 6.0, 3.0, False)
+
+    def test_viewport_frame_stays_out_of_the_crossing_grid(self, golden):
+        """mcp:cell-occupied excludes VIEWPORT from ssget, so the Python grid
+        must too, while extents still cover the frame on both sides."""
+        snap = probe_dxf.snapshot_doc(golden, space="Layout1")
+        assert "extents-computed 2.000000 2.500000 8.000000 5.500000" in snap
+        grid = [ln for ln in snap.splitlines() if ln.startswith("grid | ")]
+        assert len(grid) == 12 and not any("#" in ln for ln in grid)
