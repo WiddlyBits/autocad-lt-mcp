@@ -37,7 +37,7 @@ Exact signatures — match these without re-reading the LSP files:
 |---|---|---|
 | `preflight` says `select: false` or `probes: false` | libraries not loaded — normal before `init` in every session, or after a restart | `system(operation="init")` |
 | `system(status)` says `backend: "ezdxf"` with AutoCAD open | `auto` lost the startup race | `system(operation="init")`, then status again; stop if it is still not `file_ipc` |
-| `system(status)` says dispatch not loaded | `mcp_dispatch.lsp` isn't in the *current* document | `setup-and-autoload.md` — APPLOAD Startup Suite, not `acaddoc.lsp` |
+| `system(status)` says dispatch not loaded | `mcp_dispatch.lsp` isn't in the *current* document; in every new drawing too, the Startup Suite entry points at a path that no longer exists (repo moved or renamed) | `setup-and-autoload.md` — APPLOAD Startup Suite, not `acaddoc.lsp`; check the entry's path first |
 | Any call returns `command_active`, or a fresh `init` says `command_active` / "not loaded" | a command is waiting for input (LINE, a prompt, a dialog); the dispatcher is loaded but refuses every read | `system(operation="command_line")` shows the prompt and `document`; answer it or Esc, then retry. On a fresh server only `command_line` works until the command ends |
 | `system` payload has `dispatcher.stale: true` | `mcp_dispatch.lsp` changed on disk after the resident copy was loaded; its definitions are old and may answer plausibly | `(load "<repo>/lisp-code/mcp_dispatch.lsp")` in the active document, then `system(init)`; `stale` must read `false` |
 | `dispatcher.stale: null` with "unknown … reload once" | the resident dispatcher predates the load-time field, so freshness cannot be judged | load `mcp_dispatch.lsp` once; later checks are exact |
