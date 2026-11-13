@@ -473,6 +473,18 @@ class TestNewBackendDefaults:
         assert result.ok is False
 
     @pytest.mark.asyncio
+    async def test_file_ipc_redo_points_at_the_command_line(self):
+        """Measured 2026-10-28: REDO still works after a dispatched read, so the
+        refusal must not claim dispatch clears the redo stack."""
+        from autocad_lt_mcp.backends.file_ipc import FileIPCBackend
+        backend = FileIPCBackend()
+        with patch.object(backend, "_dispatch", new_callable=AsyncMock) as mock_dispatch:
+            result = await backend.redo()
+        assert result.ok is False
+        assert "command line" in result.error and "redo stack" not in result.error
+        mock_dispatch.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_drawing_open_ezdxf(self):
         """ezdxf backend should support drawing_open for DXF files."""
         from autocad_lt_mcp.backends.ezdxf_backend import EzdxfBackend
