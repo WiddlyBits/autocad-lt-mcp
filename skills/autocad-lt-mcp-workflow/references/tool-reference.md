@@ -22,9 +22,9 @@ This file holds only what those don't:
   `verified:true` only when entities or layer state changed (over 5000 entities it says `verified:false`).
 - **entity** — pass the handle as top-level `entity_id`, not `data.handle`. `list` has no
   coordinates and no paging: filter by `layer`. `create_line`/`circle`/`polyline`/`rectangle`/`arc`/`ellipse`/`text`/`mtext` and
-  `move`/`rotate`/`scale`/`erase` return `{entity_type, handle, layer}`; other creates (hatch,
-  block insert, dimensions) do not report `layer` (for `"last"`, the handle it resolved to); this
-  names the entity, not its new position, so check geometry with `entity(get)`.
+  `move`/`rotate`/`scale`/`erase` return `{entity_type, handle, layer}` (for `"last"`, the
+  handle it resolved to). That names the entity, not its new position: check geometry with
+  `entity(get)`. Other creates (hatch, block insert, dimensions) do not report `layer`.
 - **view** — `zoom_window` takes **drawing coordinates**. `get_screenshot` cost parameters:
   Rule 3 in the main skill.
 
