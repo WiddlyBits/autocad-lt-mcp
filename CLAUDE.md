@@ -15,7 +15,7 @@ uv run ruff check src/
 
 CI runs both (`.github/workflows/ci.yml`); run ruff before pushing.
 
-Expected count on `main`: **926**. A lower count is a real failure. Update this number in the
+Expected count on `main`: **927**. A lower count is a real failure. Update this number in the
 same commit that changes it — a stale number turns a real failure into one that reads as
 normal. Feature branches are measured when they are made, not recorded here.
 
