@@ -21,8 +21,9 @@ This file holds only what those don't:
   switch documents on the AutoCAD backend. `purge` reports `removed` plus before/after table counts; `undo` is
   `verified:true` only when entities or layer state changed (over 5000 entities it says `verified:false`).
 - **entity** — pass the handle as top-level `entity_id`, not `data.handle`. `list` has no
-  coordinates and no paging: filter by `layer`. `move`/`rotate`/`scale` return a bare string
-  (`"moved"`), so confirm with `entity(get)` or `drawing(info)`.
+  coordinates and no paging: filter by `layer`. Create verbs and `move`/`rotate`/`scale`/`erase`
+  return `{entity_type, handle, layer}` (for `"last"`, the handle it resolved to); this
+  names the entity, not its new position, so check geometry with `entity(get)`.
 - **view** — `zoom_window` takes **drawing coordinates**. `get_screenshot` cost parameters:
   Rule 3 in the main skill.
 

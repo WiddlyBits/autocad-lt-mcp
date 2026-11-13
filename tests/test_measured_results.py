@@ -13,9 +13,9 @@ TEXT = DISPATCH_LSP.read_text(encoding="utf-8")
 
 #: verb defun -> the success string that must sit behind a comparison.
 ENTITY_VERBS = {
-    "mcp-cmd-entity-move": "moved",
-    "mcp-cmd-entity-rotate": "rotated",
-    "mcp-cmd-entity-scale": "scaled",
+    "mcp-cmd-entity-move": "entity_type",
+    "mcp-cmd-entity-rotate": "entity_type",
+    "mcp-cmd-entity-scale": "entity_type",
     "mcp-cmd-entity-fillet": "filleted",
     "mcp-cmd-entity-chamfer": "chamfered",
 }

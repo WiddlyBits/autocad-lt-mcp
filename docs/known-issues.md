@@ -6,10 +6,7 @@ UNTESTED.
 
 ## Open
 
-**Entity edit payloads are bare strings.** `move`/`rotate`/`scale` return `"moved"` etc. with
-no handle, type or layer; `erase` returns `"erased <h>"`. Callers must confirm with
-`entity(get)` or `drawing(info)`. The handle is only read from top-level `entity_id`;
-`data.handle` is ignored.
+**The entity handle is only read from top-level `entity_id`;** `data.handle` is ignored.
 
 **`mcp:ent-bbox-data` has no branch for some entity types** (DIMENSION, HATCH, and the type on
 a client template's `border line 02` layer, 2026-08-15), so `bbox-by-layer` reports `bbox none` for them.
