@@ -31,6 +31,13 @@ This persists in the registry (English LT 2027, default profile:
 as `NumStartup`/`1Startup`), so it survives restarts. Reading those registry values is
 a fast way to confirm it's still configured without opening the AutoCAD UI.
 
+**The entry is an absolute path, so moving or renaming the repo breaks it silently.** AutoCAD
+skips a missing file with no error, and every new drawing reports dispatch not loaded
+(2026-11-12: the entries still pointed at the repo's pre-rename `autocad-mcp\` folder).
+Remove the old entry and add the file from its current folder. The registry did not show the
+change while AutoCAD was still running, so check with `system(status)` in a newly opened
+drawing instead: `status` loads nothing, so `dispatch: true` there means the Startup Suite did it.
+
 Also worth knowing: an install may carry a first-party `AutoCAD-MCP-Server-2027.bundle`
 ApplicationPlugin at
 `C:\Program Files\Autodesk\ApplicationPlugins\AutoCAD-MCP-Server-2027.bundle`, but its
