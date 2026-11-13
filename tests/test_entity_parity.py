@@ -254,3 +254,11 @@ class TestEditReportsEntity:
         result = await getattr(backend, method)(handle, *args)
         assert result.ok, result.error
         assert result.payload == {"entity_type": "CIRCLE", "handle": handle, "layer": "L1"}
+
+
+def test_lisp_ellipse_passes_minor_axis_as_a_distance():
+    """ELLIPSE's third prompt is "distance to other axis", so passing the bare
+    ratio drew 0.125 for 0.5 on a 4-unit half-axis (live, 2026-11-13). ezdxf takes
+    the ratio as-is; the LISP must scale it by the half-axis length."""
+    body = _defun_body(DISPATCH_LSP.read_text(encoding="utf-8"), "mcp-cmd-create-ellipse")
+    assert "(* ratio (distance (list cx cy) (list mx my)))" in body

@@ -156,6 +156,8 @@ async def entity(
       create_rectangle  — x1, y1, x2, y2, layer?
       create_arc        — data: {cx, cy, radius, start_angle, end_angle}, layer?
       create_ellipse    — data: {cx, cy, major_x, major_y, ratio}, layer?
+                          (major_x/y = absolute endpoint of the major axis;
+                          ratio = minor/major, 0 < ratio <= 1)
       create_mtext      — data: {x, y, width, text, height?}, layer?
       create_hatch      — entity_id, data: {pattern?}
 

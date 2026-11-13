@@ -1211,7 +1211,9 @@
   (setq ratio (mcp-json-get-number params "ratio"))
   (setq layer (mcp-json-get-string params "layer"))
   (if layer (progn (ensure_layer_exists layer "white" "CONTINUOUS") (set_current_layer layer)))
-  (command "_ELLIPSE" "_C" (list cx cy 0.0) (list mx my 0.0) ratio)
+  ;; ELLIPSE asks for the minor half-axis as a distance, not a ratio.
+  (command "_ELLIPSE" "_C" (list cx cy 0.0) (list mx my 0.0)
+           (* ratio (distance (list cx cy) (list mx my))))
   (setq ed (entget (entlast)))
   (cons T (strcat "{\"entity_type\":\"ELLIPSE\",\"handle\":\"" (cdr (assoc 5 ed))
                   "\",\"layer\":\"" (mcp-escape-string (cdr (assoc 8 ed))) "\"}"))
