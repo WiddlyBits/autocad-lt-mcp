@@ -141,3 +141,26 @@ class TestStatusOnADeadWindow:
         assert result.payload["hwnd_alive"] is True
         assert result.payload["mcp_status"] == "idle"
         assert result.payload["dispatcher"]["stale"] is False
+
+
+class TestWindowTitleFilter:
+    """PR 20 live check: a .dxf document was missed, giving a false start_tab_active."""
+
+    @pytest.mark.parametrize("title,found", [
+        ("Autodesk AutoCAD LT 2026 - [plan.dxf]", True),
+        ("Autodesk AutoCAD LT 2026 - [ecsi.dwt]", True),
+        ("Autodesk AutoCAD LT 2026 - [plan.dwg]", True),
+        ("Autodesk AutoCAD LT 2026 - [Drawing1]", True),
+        ("Autodesk AutoCAD LT 2026 - Start", False),
+    ])
+    def test_document_titles(self, monkeypatch, title, found):
+        from autocad_lt_mcp.backends import file_ipc
+
+        fake = SimpleNamespace(
+            IsWindowVisible=lambda h: True,
+            GetWindowText=lambda h: title,
+            EnumWindows=lambda cb, acc: cb(1, acc),
+        )
+        monkeypatch.setattr(file_ipc.sys, "platform", "win32")
+        monkeypatch.setitem(sys.modules, "win32gui", fake)
+        assert (file_ipc.list_autocad_windows() == [(1, title)]) is found
