@@ -160,10 +160,10 @@ Add `-WhatIf` to see every change without making any. The script:
 - Runs `uv sync`.
 - Adds this clone's `mcp_dispatch.lsp` to the AutoCAD Startup Suite, and removes `mcp_*.lsp` entries that point at another folder, such as a pre-rename `autocad-mcp` clone. Other entries are kept.
 - Adds `lisp-code` to AutoCAD's trusted paths if `SECURELOAD` is on.
-- Registers the server with Claude Code (user scope), Antigravity and Codex, whichever are installed. It removes the old `autocad-mcp` entry from Claude Code and Antigravity, and copies the skills into Antigravity's and Codex's skills folders.
+- Registers the server with Claude Code (user scope), Antigravity and Codex, whichever are installed. It removes the old `autocad-mcp` entry from Claude Code and Antigravity, and copies the skills into Antigravity's and Codex's skills folders, replacing the pre-rename copies.
 - Builds the skill zips in `dist\` and prints their paths.
 
-It refuses to run while AutoCAD is open, because AutoCAD saves its profile on exit and would undo the Startup Suite change. Registry keys and config files it changes are backed up first under `%LOCALAPPDATA%\autocad-lt-mcp\backups\`. Double-click a `.reg` file there to restore it. Running it twice changes nothing the second time.
+It refuses to run while AutoCAD is open, because AutoCAD saves its profile on exit and would undo the Startup Suite change. Registry keys and config files it changes are backed up first under `%LOCALAPPDATA%\autocad-lt-mcp\backups\`. Double-click a `.reg` file there to restore it. A second run reports every setting as already in place and changes none of them. It only re-copies the skills and rebuilds the zips.
 
 Two things stay manual: upload the 2 zips in claude.ai under Customize, then Skills, and check the connection in step 4 below. A Codex entry that already exists is left as it is, and the script says what to change if it points somewhere else, so settings you added there are kept.
 
