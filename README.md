@@ -9,6 +9,10 @@ Not affiliated with, endorsed by or sponsored by Autodesk, Inc. AutoCAD and Auto
 > **New to this?** AutoCAD LT is drafting software used for technical drawings. MCP is the standard
 > way to plug a tool into an AI assistant. This repo is that plug.
 
+![Eight crooked labels on a digital output wiring sheet are selected in AutoCAD LT, the user types "Line up the labels I have selected", and the labels snap into one column](docs/demo/align-selected-labels.gif)
+
+Select the labels in AutoCAD LT, ask in plain words, and the assistant reads the selection, moves the labels and reads their positions back to confirm. Recorded in real time (28 seconds) on AutoCAD LT 2027; the sheet is a made-up example.
+
 ## Measured against upstream
 
 Measured 2026-11-07 on live AutoCAD LT 2027: same drawing, same window, same model (Opus 5.5), one headless `claude -p` session per run, counted with [`tests/token_audit.py`](tests/token_audit.py). Upstream is `puran-water/autocad-mcp` at `5a7ced7`; this repo was at `9e99e8f`.
