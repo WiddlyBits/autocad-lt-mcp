@@ -57,7 +57,7 @@ Read from upstream's code at `5a7ced7`, not run against it. Upstream became acti
 | Erasing | Erasing something already erased brings it back | Reports "not found" |
 | Opening a drawing | Reports success without checking | Says it can't, and names the drawing that is still active |
 | Safety labels | Marks `system`, which can run any code, as read-only | Each tool labelled correctly, so the assistant knows which actions need your OK |
-| Tests | 226 (CI at `53275a3`) | 958 |
+| Tests | 226 (CI at `53275a3`) | 972 |
 
 This repo also ships working rules that teach an assistant to drive AutoCAD safely ([`skills/`](skills/)).
 Known limits are listed in [docs/known-issues.md](docs/known-issues.md). Error codes and when a retry
@@ -122,7 +122,7 @@ The server exposes **7 consolidated tools** (`drawing`, `entity`, `layer`, `bloc
 
 ## Upgrading from `autocad-mcp`
 
-This fork was renamed from `autocad-mcp` to `autocad-lt-mcp` on 2026-11-07. An install set up before then needs these changes:
+This fork was renamed from `autocad-mcp` to `autocad-lt-mcp` on 2026-11-07. After `git pull`, the [one-command installer](#one-command) does most of this, with AutoCAD closed: `uv sync`, the Startup Suite entry, and the Claude Code and Antigravity entries. It only reports an old Codex entry, so remove that by hand, and upload the new skills. By hand, an install set up before the rename needs these changes:
 
 1. `git pull`, then `uv sync` in the clone. The Python module is now `autocad_lt_mcp`, so `-m autocad_mcp` stops working.
 2. In your client config, change the args to `-m autocad_lt_mcp`. Renaming the server entry from `autocad-mcp` to `autocad-lt-mcp` is optional, but it changes the tool names to `mcp__autocad-lt-mcp__*`, so update any permission rules that name the old prefix. For Claude Code: `claude.cmd mcp remove autocad-mcp -s user`, then run the `mcp add` line in step 3 below.
@@ -143,6 +143,33 @@ The `AUTOCAD_MCP_*` environment variables keep their names.
 > The ezdxf headless backend works on any platform (Linux, macOS, WSL) for offline DXF generation without AutoCAD installed.
 
 ## Quick Start
+
+### One command
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Git, start AutoCAD LT once and close it (that creates the settings the script edits), then:
+
+```powershell
+git clone https://github.com/WiddlyBits/autocad-lt-mcp.git
+cd autocad-lt-mcp
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+```
+
+Add `-WhatIf` to see every change without making any. The script:
+
+- Stops and says what to install if uv, Git or AutoCAD LT 2024+ is missing.
+- Runs `uv sync`.
+- Adds this clone's `mcp_dispatch.lsp` to the AutoCAD Startup Suite, and removes `mcp_*.lsp` entries that point at another folder, such as a pre-rename `autocad-mcp` clone. Other entries are kept.
+- Adds `lisp-code` to AutoCAD's trusted paths if `SECURELOAD` is on.
+- Registers the server with Claude Code (user scope), Antigravity and Codex, whichever are installed. It removes the old `autocad-mcp` entry from Claude Code and Antigravity, and copies the skills into Antigravity's and Codex's skills folders.
+- Builds the skill zips in `dist\` and prints their paths.
+
+It refuses to run while AutoCAD is open, because AutoCAD saves its profile on exit and would undo the Startup Suite change. Registry keys and config files it changes are backed up first under `%LOCALAPPDATA%\autocad-lt-mcp\backups\`. Double-click a `.reg` file there to restore it. Running it twice changes nothing the second time.
+
+Two things stay manual: upload the 2 zips in claude.ai under Customize, then Skills, and check the connection in step 4 below. A Codex entry that already exists is left as it is, and the script says what to change if it points somewhere else, so settings you added there are kept.
+
+The trusted-path step hasn't run on a machine with `SECURELOAD` on yet. Claude Desktop isn't configured by the script, so use the JSON block in step 3.
+
+The steps below are the same setup by hand.
 
 ### 1. Clone and install
 
