@@ -57,7 +57,7 @@ Read from upstream's code at `5a7ced7`, not run against it. Upstream became acti
 | Erasing | Erasing something already erased brings it back | Reports "not found" |
 | Opening a drawing | Reports success without checking | Says it can't, and names the drawing that is still active |
 | Safety labels | Marks `system`, which can run any code, as read-only | Each tool labelled correctly, so the assistant knows which actions need your OK |
-| Tests | 226 (CI at `53275a3`) | 972 |
+| Tests | 226 (CI at `53275a3`) | 973 |
 
 This repo also ships working rules that teach an assistant to drive AutoCAD safely ([`skills/`](skills/)).
 Known limits are listed in [docs/known-issues.md](docs/known-issues.md). Error codes and when a retry

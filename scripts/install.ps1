@@ -21,7 +21,7 @@
        because AutoCAD writes its profile back on exit and would undo the change.
     4. Registers the server with Claude Code, Antigravity and Codex, whichever are
        installed, and removes the pre-rename `autocad-mcp` entry. Copies the skills
-       into Antigravity's and Codex's skills folders.
+       into Antigravity's and Codex's skills folders, removing pre-rename copies.
     5. Builds the skill zips and prints the claude.ai upload step.
 
   Backups go to %LOCALAPPDATA%\autocad-lt-mcp\backups\<timestamp>\. Double-click a
@@ -33,6 +33,7 @@ param()
 $Server = 'autocad-lt-mcp'
 $OldServer = 'autocad-mcp'
 $SkillNames = 'autocad-lt-mcp-workflow', 'autocad-lt-save-verification'
+$OldSkillNames = 'autocad-mcp-workflow', 'autocad-save-verification'
 
 # ---------- pure helpers (tests/test_install_script.py dot-sources these) ----------
 
@@ -72,8 +73,11 @@ function Merge-McpJson([string]$Json, [string]$Command) {
     $entry = $servers.PSObject.Properties[$Server]
     if ($entry) {
         # Update in place so the entry keeps its position and any env or extra keys.
-        $entry.Value | Add-Member -NotePropertyName command -NotePropertyValue $Command -Force
-        $entry.Value | Add-Member -NotePropertyName args -NotePropertyValue @('-m', 'autocad_lt_mcp') -Force
+        # Assign when present: Add-Member -Force re-adds the key at the end and reorders the file.
+        foreach ($p in @{ command = $Command; args = @('-m', 'autocad_lt_mcp') }.GetEnumerator()) {
+            if ($entry.Value.PSObject.Properties[$p.Key]) { $entry.Value.($p.Key) = $p.Value }
+            else { $entry.Value | Add-Member -NotePropertyName $p.Key -NotePropertyValue $p.Value }
+        }
     } else {
         $servers | Add-Member -NotePropertyName $Server -NotePropertyValue ([pscustomobject][ordered]@{
             command = $Command; args = @('-m', 'autocad_lt_mcp')
@@ -249,6 +253,14 @@ function Step-Codex([string]$Python, [string]$Repo) {
 }
 
 function Copy-Skills([string]$Dest, [string]$Repo) {
+    # Pre-rename copies would load alongside the new ones and give the old rules.
+    foreach ($name in $OldSkillNames) {
+        $old = Join-Path $Dest $name
+        if ((Test-Path -LiteralPath $old) -and $PSCmdlet.ShouldProcess($old, 'Remove pre-rename skill')) {
+            Remove-Item -LiteralPath $old -Recurse -Force
+            Write-Host "  Removed old skill $old"
+        }
+    }
     foreach ($name in $SkillNames) {
         $target = Join-Path $Dest $name
         if ($PSCmdlet.ShouldProcess($target, 'Copy skill')) {
@@ -303,8 +315,7 @@ function Invoke-Install {
 
     Write-Host "`n[5/5] Skill zips for claude.ai"
     if ($PSCmdlet.ShouldProcess((Join-Path $repo 'dist'), 'Build skill zips')) {
-        & (Join-Path $PSScriptRoot 'sync-skills.ps1') -Package | Out-Null
-        $SkillNames | ForEach-Object { Write-Host "  $(Join-Path $repo "dist\$_.zip")" }
+        & (Join-Path $PSScriptRoot 'sync-skills.ps1') -Package  # prints each zip's full path
     }
 
     Write-Host "`nDone. Left for you:"

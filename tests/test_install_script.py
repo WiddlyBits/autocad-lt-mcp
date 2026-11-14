@@ -111,6 +111,14 @@ def test_json_existing_entry_keeps_its_env_and_run_twice_is_stable():
     assert once == twice
     entry = json.loads(once)["mcpServers"]["autocad-lt-mcp"]
     assert entry["command"] == PY and entry["env"] == {"AUTOCAD_MCP_BACKEND": "ezdxf"}
+    # Key order kept, or the next run sees a "change" and rewrites the file.
+    assert list(entry) == ["command", "args", "env"]
+
+
+def test_json_upgrade_then_rerun_is_byte_identical():
+    old = json.dumps({"mcpServers": {"autocad-mcp": {"command": "x", "args": []}}})
+    once = ps("Merge-McpJson $v.text $v.py", text=old, py=PY)
+    assert ps("Merge-McpJson $v.text $v.py", text=once, py=PY) == once
 
 
 def test_json_from_empty_file():
