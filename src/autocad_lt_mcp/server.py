@@ -1,4 +1,4 @@
-"""AutoCAD MCP Server v3.3 — 8 consolidated tools with operation dispatch.
+"""AutoCAD MCP Server v3.4 — 8 consolidated tools with operation dispatch.
 
 Tools: drawing, entity, layer, block, annotation, view, system
 """
@@ -831,5 +831,5 @@ def main():
     # returns, and the backend is only picked at the first tool call: import unconditionally.
     import autocad_lt_mcp.backends.ezdxf_backend  # noqa: F401
 
-    log.info("autocad_lt_mcp_starting", version="3.3.0")
+    log.info("autocad_lt_mcp_starting", version="3.4.0")
     mcp.run(transport="stdio")
