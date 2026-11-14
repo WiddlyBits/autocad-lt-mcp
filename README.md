@@ -167,7 +167,7 @@ It refuses to run while AutoCAD is open, because AutoCAD saves its profile on ex
 
 Two things stay manual: upload the 2 zips in claude.ai under Customize, then Skills, and check the connection in step 4 below. A Codex entry that already exists is left as it is, and the script says what to change if it points somewhere else, so settings you added there are kept.
 
-The trusted-path step hasn't run on a machine with `SECURELOAD` on yet. Claude Desktop isn't configured by the script, so use the JSON block in step 3.
+The installer has only been run on one machine so far, so expect rough edges on yours. The trusted-path step hasn't run on a machine with `SECURELOAD` on yet. Claude Desktop isn't configured by the script, so use the JSON block in step 3.
 
 The steps below are the same setup by hand.
 
