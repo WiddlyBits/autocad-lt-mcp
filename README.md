@@ -73,7 +73,7 @@ These came up in real drafting work.
 
 | Problem | What happens now |
 |---|---|
-| **PDF plotting did nothing.** The plot command was fed its answers in the wrong order, so the file path landed on the wrong question and no PDF appeared. | `drawing(plot_pdf)` sends AutoCAD LT 2027's real 18-step plot sequence, captured from a manual run, and the save-verification skill has the assistant confirm the PDF landed. With drawing switching, the assistant can plot one open drawing after another. Currently set up for ARCH D landscape sheets. Upstream's `drawing(plot_pdf)` is unchanged; its newer `revision` plot hasn't been tested here. |
+| **PDF plotting did nothing.** The plot command was fed its answers in the wrong order, so the file path landed on the wrong question and no PDF appeared. | `drawing(plot_pdf)` sends AutoCAD LT 2027's real 18-step plot sequence, captured from a manual run, and the server checks the PDF is on disk before it reports success. With drawing switching, the assistant can plot one open drawing after another. Currently set up for ARCH D landscape sheets. Upstream's `drawing(plot_pdf)` is unchanged; its newer `revision` plot hasn't been tested here. |
 | **Selections took four round trips to describe.** In the sessions that prompted selection handoff, 129 of 193 tool calls went on this kind of back-and-forth. | One call reports what's selected and edits exactly those objects. |
 | **"Saved" didn't mean saved.** A failed save reported success, and the drawing that was still open was the original. | Every save and DXF export is checked on disk. If the file isn't there, you're told. |
 | **The server hung when AutoCAD was closed.** One `system(status)` call ran 1,046 s with no answer, a deadlock while loading numpy on the fallback path. | The same call answers in under a second, measured through a chat's MCP connection. |
@@ -190,7 +190,7 @@ Open AutoCAD LT and load `mcp_dispatch.lsp` using **APPLOAD**:
 1. Type `APPLOAD` in the AutoCAD command line
 2. Browse to `<repo>/lisp-code/mcp_dispatch.lsp`
 3. Click **Load**
-4. You should see: `=== MCP Dispatch v3.1 loaded ===` and `Ready for commands via (c:mcp-dispatch)`
+4. You should see: `=== MCP Dispatch v3.4 loaded ===` and `Ready for commands via (c:mcp-dispatch)`
 
 Then add it to the **Startup Suite** in the same dialog (Startup Suite, Contents, Add). **Load** only covers the current drawing, so without this every other drawing fails step 4 with `mcp_dispatch.lsp not loaded`.
 

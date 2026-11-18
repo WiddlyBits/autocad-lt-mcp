@@ -148,7 +148,7 @@ class TestWindowTitleFilter:
 
     @pytest.mark.parametrize("title,found", [
         ("Autodesk AutoCAD LT 2026 - [plan.dxf]", True),
-        ("Autodesk AutoCAD LT 2026 - [ecsi.dwt]", True),
+        ("Autodesk AutoCAD LT 2026 - [template.dwt]", True),
         ("Autodesk AutoCAD LT 2026 - [plan.dwg]", True),
         ("Autodesk AutoCAD LT 2026 - [Drawing1]", True),
         ("Autodesk AutoCAD LT 2026 - Start", False),
