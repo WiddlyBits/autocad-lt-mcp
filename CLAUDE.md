@@ -89,7 +89,7 @@ commit is delivered. `-SyncedRoot <dir>` points `-Check` at a scratch copy for t
 `tests/test_skill_drift.py` fails CI when a skill names an `mcp:`/`c:` LISP function or a
 `tool(operation=…)` that does not exist in `src/` or `lisp-code/`.
 
-`title-block-text` is internal and lives outside this repo, in `~\projects\ecsi\skills\`; never
+`title-block-text` is internal and lives outside this repo, in a private folder; never
 add it back here. An older copy stays in public git history, including the `v3.2.0` tag.
 `-SkillsRoot <that folder>` runs `-Check` and `-Package` on it. `test_skill_drift` does not cover it.
 

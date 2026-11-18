@@ -18,8 +18,8 @@ SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "install.ps1"
 SHELL = shutil.which("powershell.exe") or shutil.which("pwsh")
 pytestmark = pytest.mark.skipif(SHELL is None, reason="no PowerShell on PATH")
 
-LISP = r"C:\Users\andy\autocad-lt-mcp\lisp-code"
-PY = r"C:\Users\andy\autocad-lt-mcp\.venv\Scripts\python.exe"
+LISP = r"C:\Users\someone\autocad-lt-mcp\lisp-code"
+PY = r"C:\Users\someone\autocad-lt-mcp\.venv\Scripts\python.exe"
 
 
 def ps(expr: str, **values):
@@ -49,7 +49,7 @@ def test_startup_adds_dispatch_to_empty_list():
 
 
 def test_startup_replaces_entries_from_renamed_clone_and_keeps_others():
-    old = r"C:\Users\andy\autocad-mcp\lisp-code"
+    old = r"C:\Users\someone\autocad-mcp\lisp-code"
     got = merge_startup([
         r"C:\tools\other.lsp",
         old + r"\mcp_dispatch.lsp",
@@ -69,7 +69,7 @@ def test_startup_keeps_current_entries_and_is_idempotent():
 def test_startup_entry_with_env_var_is_current():
     # APPLOAD writes %USERPROFILE%\... (REG_EXPAND_SZ); the entry must survive as written.
     entry = r"%INSTALL_TEST_HOME%\autocad-lt-mcp\lisp-code\mcp_dispatch.lsp"
-    got = ps(r"$env:INSTALL_TEST_HOME = 'C:\Users\andy'; Merge-StartupList @($v.e) $v.lisp", e=entry, lisp=LISP)
+    got = ps(r"$env:INSTALL_TEST_HOME = 'C:\Users\someone'; Merge-StartupList @($v.e) $v.lisp", e=entry, lisp=LISP)
     assert got == [entry]
 
 
@@ -127,7 +127,7 @@ def test_json_from_empty_file():
 
 CODEX = (
     "model = 'x'\n\n[mcp_servers.autocad-lt-mcp]\n"
-    "command = 'C:\\Users\\andy\\autocad-lt-mcp\\.venv\\Scripts\\python.exe'\n"
+    "command = 'C:\\Users\\someone\\autocad-lt-mcp\\.venv\\Scripts\\python.exe'\n"
     'args = ["-m", "autocad_lt_mcp"]\n\n'
     '[mcp_servers.autocad-lt-mcp.env]\nAUTOCAD_MCP_BACKEND = "ezdxf"\n'
 )
