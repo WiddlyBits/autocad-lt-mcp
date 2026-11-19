@@ -947,8 +947,12 @@
          (strcat "{\"ok\":true,\"readback\":" (mcp:batch-jlist (car r))
                  ",\"added\":" (mcp:batch-jlist (reverse *mcp-batch-made*))
                  ",\"dbmod\":" (itoa (getvar "DBMOD")) "}"))
+       ;; After (command "_.UNDO" ...) an error comes back as nil, not an error
+       ;; object (measured live 2026-11-19); the body itself never returns nil.
        (mcp:batch-rollback edits
-         (if (vl-catch-all-error-p r) (vl-catch-all-error-message r) "read-back did not match")))))
+         (cond ((vl-catch-all-error-p r) (vl-catch-all-error-message r))
+               ((null r) "an error stopped the batch partway")
+               (T "read-back did not match"))))))
 )
 
 (princ "\nmcp_select.lsp loaded: c:HS mcp:sel mcp:sel-dump mcp:sel-show mcp:by-handles mcp:guard mcp:whoami mcp:verify-write mcp:line-uniform mcp:align-axis mcp:sel-move mcp:text-sub mcp:batch-dump mcp:batch-apply")
