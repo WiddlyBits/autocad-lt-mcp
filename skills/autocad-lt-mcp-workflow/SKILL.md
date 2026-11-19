@@ -177,6 +177,13 @@ edit; crop reference photos too; `view(zoom_window)` takes drawing coordinates, 
 
 ## Rule 4: batch
 
+Model-space text edits across many entities (replace labels by order, renumber a
+range, add MTEXT, then save) go through **one**
+`system(operation="apply_batch", data={spec, dry_run})` call: `dry_run: true` first
+when the match is uncertain, then the same spec for real. It checks every count
+before editing, refuses `DIRTY-START`, undoes the whole batch on failure, and returns
+the save proof. Spec keys are in the `system` tool description.
+
 Several sequential command-line operations belong in **one** `.scr` run via
 `(command "_.SCRIPT" "C:/temp/batch.scr")`, not one `execute_lisp` each — one request
 instead of fifteen. Snippet in `references/activex-and-lisp-limits.md`. Any `execute_lisp`
