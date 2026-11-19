@@ -73,6 +73,42 @@ class EzdxfBackend(AutoCADBackend):
         if layer and layer not in self._doc.layers:
             self._doc.layers.add(layer)
 
+    # --- apply_batch ---
+
+    @staticmethod
+    def _text_of(e) -> str:
+        return e.text if e.dxftype() == "MTEXT" else e.dxf.text
+
+    async def batch_snapshot(self, dwg: str) -> CommandResult:
+        # No document name to guard against offline, and no DBMOD: None says "not measured", not "clean".
+        if not self._doc:
+            return CommandResult(ok=False, error="No document open")
+        ents = [{"h": e.dxf.handle, "type": e.dxftype(), "layer": e.dxf.layer,
+                 "text": self._text_of(e), "x": e.dxf.insert.x, "y": e.dxf.insert.y}
+                for e in self._msp.query("TEXT MTEXT")]
+        return CommandResult(ok=True, payload={"dwg": self._save_path, "path": self._save_path,
+                                               "dbmod": None, "ents": ents})
+
+    async def batch_apply(self, dwg: str, edits: list[dict], mtext: list[dict]) -> CommandResult:
+        # No undo here, so all-or-nothing rests on checking every target before the first edit.
+        targets = [self._doc.entitydb.get(e["h"]) for e in edits]
+        stale = [e["h"] for e, t in zip(edits, targets) if t is None or self._text_of(t) != e["old"]]
+        if stale:
+            return CommandResult(ok=False, error="STALE", payload={"handles": stale, "detail": "no edits were made"})
+        for e, t in zip(edits, targets):
+            if t.dxftype() == "MTEXT":
+                t.text = e["new"]
+            else:
+                t.dxf.text = e["new"]
+        added = []
+        for a in mtext:
+            self._ensure_layer(a["layer"])
+            m = self._msp.add_mtext(a["text"], dxfattribs={
+                "layer": a["layer"], "char_height": a["height"], "insert": (a["x"], a["y"])})
+            added.append(m.dxf.handle)
+        return CommandResult(ok=True, payload={"readback": [self._text_of(t) for t in targets],
+                                               "added": added, "dbmod": None})
+
     # --- Drawing management ---
 
     async def drawing_info(self) -> CommandResult:

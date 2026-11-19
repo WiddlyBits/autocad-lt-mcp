@@ -107,6 +107,15 @@ class AutoCADBackend(ABC):
     async def assert_doc(self, expected_name: str) -> CommandResult:
         return CommandResult(ok=False, error="Not supported on this backend")
 
+    async def batch_snapshot(self, dwg: str) -> CommandResult:
+        """apply_batch, step 1: {dwg, path, dbmod, ents: [{h, type, layer, text, x, y}]}
+        for every model-space TEXT/MTEXT. Refuses WRONG-DOC when dwg is not active."""
+        return CommandResult(ok=False, error="Not supported on this backend")
+
+    async def batch_apply(self, dwg: str, edits: list[dict], mtext: list[dict]) -> CommandResult:
+        """apply_batch, step 2: all edits or none. {readback: [text per edit], added: [handle], dbmod}."""
+        return CommandResult(ok=False, error="Not supported on this backend")
+
     async def command_line(self, n: int = 10) -> CommandResult:
         return CommandResult(ok=False, error="Not supported on this backend")
 

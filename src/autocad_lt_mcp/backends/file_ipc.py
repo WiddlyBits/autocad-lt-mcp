@@ -690,6 +690,36 @@ class FileIPCBackend(AutoCADBackend):
             payload={"expected": expected_name, "actual": str(result.payload)},
         )
 
+    # --- apply_batch (LISP half in mcp_select.lsp) ---
+
+    @staticmethod
+    def _lstr(s: str) -> str:
+        """A Python str as an AutoLISP string literal."""
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
+
+    async def _batch_call(self, code: str) -> CommandResult:
+        result = await self.execute_lisp(code)
+        if not result.ok:
+            return result
+        try:
+            d = json.loads(result.payload)
+        except (TypeError, ValueError):
+            return CommandResult(ok=False, error="batch_unparsed",
+                                 payload={"raw": result.payload, "hint": "run system(operation='init')"})
+        if not d.get("ok"):
+            return CommandResult(ok=False, error=d.get("error", "batch_failed"), payload=d)
+        return CommandResult(ok=True, payload=d)
+
+    async def batch_snapshot(self, dwg: str) -> CommandResult:
+        return await self._batch_call(f"(mcp:batch-dump {self._lstr(dwg)})")
+
+    async def batch_apply(self, dwg: str, edits: list[dict], mtext: list[dict]) -> CommandResult:
+        q = self._lstr
+        e = " ".join(f"({q(x['h'])} {q(x['old'])} {q(x['new'])})" for x in edits)
+        a = " ".join(f"({q(m['layer'])} {float(m['height']):.10f} {float(m['x']):.10f} "
+                     f"{float(m['y']):.10f} {q(m['text'])})" for m in mtext)
+        return await self._batch_call(f"(mcp:batch-apply {q(dwg)} '({e}) '({a}))")
+
     # --- Library loading and preflight ---
 
     #: Libraries the Startup Suite does not have to carry, in load order.
