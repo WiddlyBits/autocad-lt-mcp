@@ -693,6 +693,17 @@ async def system(
                       data: {expected: "<filename>"}. Returns ok:true when names match,
                       ok:false / error:"wrong_doc" when they differ (actual name in payload).
                       Requires mcp_probes.lsp loaded (system(init) must have run).
+      apply_batch   — A whole model-space text batch in ONE call: guard, match,
+                      edit, read-back, save. data: {spec, dry_run?}. spec:
+                      {dwg, rules: [{layer?, text | range: [lo, hi], expect,
+                      values: [...] | add: N}], mtext: [{layer, height, x, y,
+                      text}], save?}. values go top-to-bottom by Y (X breaks
+                      ties). Every count is checked before any edit: a
+                      mismatch (COUNT-MISMATCH) or unsaved work (DIRTY-START)
+                      changes nothing. A failure mid-batch undoes the whole
+                      group (ROLLED-BACK). dry_run: true returns handles with
+                      old->new and changes nothing. Save proof is the save
+                      result plus DBMOD nonzero -> 0. Needs init first.
     """
     data = data or {}
 
@@ -795,6 +806,12 @@ async def system(
         if not expected:
             return _json({"error": "data.expected is required"})
         result = await backend.assert_doc(expected)
+        return _json(result.to_dict())
+    elif operation == "apply_batch":
+        from autocad_lt_mcp import batch
+
+        backend = await get_backend()
+        result = await batch.run(backend, data.get("spec"), bool(data.get("dry_run", False)))
         return _json(result.to_dict())
     else:
         return _json({"error": f"Unknown system operation: {operation}"})

@@ -40,6 +40,8 @@ PUBLIC = [
     "mcp:align-axis",
     "mcp:sel-move",
     "mcp:text-sub",
+    "mcp:batch-dump",
+    "mcp:batch-apply",
 ]
 
 #: The verbs that change the drawing. Every one of them has to guard, undo-wrap

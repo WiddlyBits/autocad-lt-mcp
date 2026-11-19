@@ -822,5 +822,134 @@
   out
 )
 
-(princ "\nmcp_select.lsp loaded: c:HS mcp:sel mcp:sel-dump mcp:sel-show mcp:by-handles mcp:guard mcp:whoami mcp:verify-write mcp:line-uniform mcp:align-axis mcp:sel-move mcp:text-sub")
+;; -----------------------------------------------------------------------
+;; apply_batch - the AutoCAD half of system(operation="apply_batch")
+;;
+;; Python plans every edit from mcp:batch-dump; mcp:batch-apply makes them,
+;; all or none. The dispatcher loads execute_lisp code under
+;; vl-catch-all-apply, which swallows an error before any *error* handler
+;; runs, so the rollback hangs off this file's own vl-catch-all-apply around
+;; the edit body. Model space only, like the Python side.
+;; -----------------------------------------------------------------------
+
+(defun mcp:batch-text (d / s)
+  "Full text. MTEXT past 250 characters keeps its head in group 3 chunks."
+  (setq s "")
+  (foreach p d (if (= (car p) 3) (setq s (strcat s (cdr p)))))
+  (strcat s (cdr (assoc 1 d)))
+)
+
+(defun mcp:batch-jlist (lst / out)
+  (setq out "")
+  (foreach s lst
+    (setq out (strcat out (if (= out "") "" ",") "\"" (mcp:esc s) "\"")))
+  (strcat "[" out "]")
+)
+
+(defun mcp:batch-dump (dwg / dbmod ss i d p out)
+  "Every model-space TEXT/MTEXT as JSON, plus DWGNAME, path and DBMOD."
+  (if (not (mcp:guard dwg "Model"))
+    (mcp:wrong-doc dwg "Model")
+    (progn
+      ;; Read before begin-output, so nothing here can move it.
+      (setq dbmod (getvar "DBMOD"))
+      (mcp:begin-output)
+      (setq ss (ssget "_X" '((0 . "TEXT,MTEXT") (410 . "Model"))) i 0 out "")
+      (if ss
+        (repeat (sslength ss)
+          (setq d (entget (ssname ss i)) p (cdr (assoc 10 d)))
+          (setq out (strcat out (if (> i 0) "," "")
+                            "{\"h\":\"" (cdr (assoc 5 d))
+                            "\",\"type\":\"" (cdr (assoc 0 d))
+                            "\",\"layer\":\"" (mcp:esc (cdr (assoc 8 d)))
+                            "\",\"text\":\"" (mcp:esc (mcp:batch-text d))
+                            "\",\"x\":" (mcp:fmt (car p)) ",\"y\":" (mcp:fmt (cadr p)) "}"))
+          (setq i (1+ i))))
+      (mcp:end-output)
+      (strcat "{\"ok\":true,\"dwg\":\"" (mcp:esc (getvar "DWGNAME"))
+              "\",\"path\":\"" (mcp:esc (strcat (getvar "DWGPREFIX") (getvar "DWGNAME")))
+              "\",\"dbmod\":" (itoa dbmod) ",\"ents\":[" out "]}")))
+)
+
+(defun mcp:batch-set (h s / e d)
+  "Set one entity's text and return what it reads back as. Its own function so
+   a live test can redefine it to fail mid-batch; system init restores it."
+  (setq e (handent h) d (entget e))
+  (entmod (subst (cons 1 s) (assoc 1 d) d))
+  (cdr (assoc 1 (entget e)))
+)
+
+(defun mcp:batch-stale (edits / out e d)
+  "Handles whose entity is gone, is long MTEXT, or no longer holds the old text."
+  (foreach x edits
+    (setq e (handent (car x)) d (if e (entget e)))
+    (if (not (and d (not (assoc 3 d)) (= (cdr (assoc 1 d)) (cadr x))))
+      (setq out (cons (car x) out))))
+  (reverse out)
+)
+
+(defun mcp:batch-body (edits adds / rb e d ok)
+  "Open the group, edit, make, read back. Returns (readbacks all-matched)."
+  (mcp:undo-begin "apply_batch")
+  (setq *mcp-batch-open* T ok T)
+  (foreach x edits (setq rb (cons (mcp:batch-set (car x) (caddr x)) rb)))
+  (setq rb (reverse rb))
+  (if (not (equal rb (mapcar 'caddr edits))) (setq ok nil))
+  (foreach a adds   ; a = (layer height x y text)
+    (setq e (entmakex (list '(0 . "MTEXT") '(100 . "AcDbEntity") (cons 8 (nth 0 a))
+                            '(100 . "AcDbMText") (list 10 (nth 2 a) (nth 3 a) 0.0)
+                            (cons 40 (nth 1 a)) '(41 . 0.0) '(71 . 1) (cons 1 (nth 4 a)))))
+    (if e (setq d (entget e) *mcp-batch-made* (cons (cdr (assoc 5 d)) *mcp-batch-made*)))
+    (if (not (and e (= (cdr (assoc 1 d)) (nth 4 a)) (= (strcase (cdr (assoc 8 d))) (strcase (nth 0 a)))))
+      (setq ok nil)))
+  (list rb ok)
+)
+
+(defun mcp:batch-rollback (edits why / bad e d)
+  "Close and undo the group, then check every entity is back as it was."
+  (if *mcp-batch-open*
+    (progn
+      (command)   ; cancel anything an error left at the prompt
+      (command "_.UNDO" "_End")
+      (command "_.UNDO" "1")
+      (setq *mcp-batch-open* nil)))
+  (foreach x edits
+    (setq e (handent (car x)) d (if e (entget e)))
+    (if (not (and d (= (cdr (assoc 1 d)) (cadr x)))) (setq bad (cons (car x) bad))))
+  (foreach h *mcp-batch-made*
+    (if (and (setq e (handent h)) (entget e)) (setq bad (cons h bad))))
+  (strcat "{\"ok\":false,\"error\":\"ROLLED-BACK\",\"reason\":\"" (mcp:esc why)
+          "\",\"rolled_back\":" (if bad "false" "true")
+          ",\"not_restored\":" (mcp:batch-jlist bad)
+          ",\"dbmod\":" (itoa (getvar "DBMOD")) "}")
+)
+
+(defun mcp:batch-apply (dwg edits adds / undoctl stale r)
+  "All of edits ((handle old new) ...) and adds ((layer height x y text) ...),
+   or none. Refuses before touching anything on WRONG-DOC, DIRTY-START,
+   UNDO-OFF (no undo means no rollback) or STALE."
+  (setq undoctl (getvar "UNDOCTL") *mcp-batch-open* nil *mcp-batch-made* nil)
+  (cond
+    ((not (mcp:guard dwg "Model")) (mcp:wrong-doc dwg "Model"))
+    ((/= (getvar "DBMOD") 0)
+     (strcat "{\"ok\":false,\"error\":\"DIRTY-START\",\"dbmod\":" (itoa (getvar "DBMOD")) "}"))
+    ;; bit 1 = undo on, bit 2 = "one" mode, where groups do not exist.
+    ((/= (logand undoctl 3) 1)
+     (strcat "{\"ok\":false,\"error\":\"UNDO-OFF\",\"undoctl\":" (itoa undoctl) "}"))
+    ((setq stale (mcp:batch-stale edits))
+     (strcat "{\"ok\":false,\"error\":\"STALE\",\"handles\":" (mcp:batch-jlist stale) "}"))
+    (T
+     (setq r (vl-catch-all-apply 'mcp:batch-body (list edits adds)))
+     (if (and (not (vl-catch-all-error-p r)) (cadr r))
+       (progn
+         (mcp:undo-end)
+         (setq *mcp-batch-open* nil)
+         (strcat "{\"ok\":true,\"readback\":" (mcp:batch-jlist (car r))
+                 ",\"added\":" (mcp:batch-jlist (reverse *mcp-batch-made*))
+                 ",\"dbmod\":" (itoa (getvar "DBMOD")) "}"))
+       (mcp:batch-rollback edits
+         (if (vl-catch-all-error-p r) (vl-catch-all-error-message r) "read-back did not match")))))
+)
+
+(princ "\nmcp_select.lsp loaded: c:HS mcp:sel mcp:sel-dump mcp:sel-show mcp:by-handles mcp:guard mcp:whoami mcp:verify-write mcp:line-uniform mcp:align-axis mcp:sel-move mcp:text-sub mcp:batch-dump mcp:batch-apply")
 (princ)
